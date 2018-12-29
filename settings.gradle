@@ -1,0 +1,1 @@
+include ':playfeature', ':app', ':base', ':instantapp'
