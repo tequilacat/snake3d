@@ -3,7 +3,7 @@
     package="tequilacat.org.snake3d.playfeature">
 
     <application>
-        <activity android:name=".DirectionContrrolActivity">
+        <activity android:name=".DirectionControlActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
