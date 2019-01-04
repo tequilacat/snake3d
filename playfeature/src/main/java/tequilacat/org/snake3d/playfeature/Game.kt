@@ -22,8 +22,8 @@ class Game {
     private var currentLevelIndex = 0
     private var currentLevel: Level = levels[currentLevelIndex]
 
-    private val fieldWidth get() = currentLevel.fieldWidth.toFloat()
-    private val fieldHeight get() = currentLevel.fieldHeight.toFloat()
+    val fieldWidth get() = currentLevel.fieldWidth.toFloat()
+    val fieldHeight get() = currentLevel.fieldHeight.toFloat()
 
     // objects on field
     private val fieldObjects = mutableListOf<GameObject>()

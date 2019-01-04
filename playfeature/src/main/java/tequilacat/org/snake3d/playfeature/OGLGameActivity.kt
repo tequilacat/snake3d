@@ -35,9 +35,11 @@ class OGLGameActivity : AppCompatActivity() {
         init {
             // Create an OpenGL ES 2.0 context
             setEGLContextClientVersion(2)
-            mRenderer = GameGLRenderer()
+
+            mRenderer = GameGLRenderer(OGLGameScene(Game()))
             // Set the Renderer for drawing on the GLSurfaceView
             setRenderer(mRenderer)
+            // renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
         }
     }
 }
