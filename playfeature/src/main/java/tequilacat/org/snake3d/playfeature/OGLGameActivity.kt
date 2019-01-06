@@ -4,6 +4,9 @@ import android.content.Context
 import android.opengl.GLSurfaceView
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import tequilacat.org.snake3d.playfeature.oglgame.OGLGameScene
+import javax.microedition.khronos.egl.EGLConfig
+import javax.microedition.khronos.opengles.GL10
 
 class OGLGameActivity : AppCompatActivity() {
 
@@ -42,4 +45,21 @@ class OGLGameActivity : AppCompatActivity() {
             // renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
         }
     }
+
+    class GameGLRenderer(val gameScene: OGLGameScene) : GLSurfaceView.Renderer {
+
+        override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+            gameScene.initInstance()
+        }
+
+        override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
+            gameScene.initView(width, height)
+        }
+
+        override fun onDrawFrame(gl: GL10?) {
+//        glClear(GL_COLOR_BUFFER_BIT);
+            gameScene.draw()
+        }
+    }
+
 }
