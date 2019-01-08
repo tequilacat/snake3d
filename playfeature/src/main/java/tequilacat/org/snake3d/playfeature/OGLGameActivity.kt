@@ -4,6 +4,7 @@ import android.content.Context
 import android.opengl.GLSurfaceView
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import tequilacat.org.snake3d.playfeature.oglgame.OGLGameScene
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
@@ -57,8 +58,10 @@ class OGLGameActivity : AppCompatActivity() {
         }
 
         override fun onDrawFrame(gl: GL10?) {
-//        glClear(GL_COLOR_BUFFER_BIT);
+            val stt = System.nanoTime()
             gameScene.draw()
+            val time = (System.nanoTime() - stt)/ 1_000_000.0
+            Log.d("render", "onDrawFrame: $time ms")
         }
     }
 

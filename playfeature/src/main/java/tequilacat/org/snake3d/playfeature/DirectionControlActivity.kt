@@ -8,8 +8,13 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.R.attr.x
+import android.R.attr.y
+
+
 
 class DirectionControlActivity : AppCompatActivity(), SensorEventListener {
 
@@ -126,6 +131,39 @@ class GameView(context: Context?) : SurfaceView(context), SurfaceHolder.Callback
         //create a thread
         thread = DirectionControlActivity.DrawThread(holder, this)
     }
+
+    /*
+    private var lastX: Float = 0f
+    private var lastY: Float = 0f
+
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        val x = event!!.x
+        val y = event.y
+
+        if (event.action == MotionEvent.ACTION_DOWN) {
+
+        } else  if (event.action == MotionEvent.ACTION_MOVE) {
+            var dx = x - lastX
+            var dy = y - lastY
+            // reverse direction of rotation above the mid-line
+            if (y > height / 2) {
+                dx = dx * -1
+            }
+            // reverse direction of rotation to left of the mid-line
+            if (x < width / 2) {
+                dy = dy * -1
+            }
+            mRenderer.setAngle(
+                mRenderer.getAngle() + (dx + dy) * TOUCH_SCALE_FACTOR
+            )  // = 180.0f / 320
+            requestRender()
+        }
+
+        lastX = x
+        lastY = y
+        return true
+    }
+*/
 
     override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
         viewWidth = width

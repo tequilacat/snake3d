@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="tequilacat.org.snake3d.playfeature">
 
+
+    <uses-feature
+            android:glEsVersion="0x00020000"
+            android:required="true" />
+
     <application>
         <activity android:name=".OGLGameActivity">
             <intent-filter>
