@@ -1,6 +1,7 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
 import android.opengl.GLES20.*
+import tequilacat.org.snake3d.playfeature.Game
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 import kotlin.math.PI
@@ -14,8 +15,13 @@ interface Drawable {
     fun draw(mvpMatrix: FloatArray, drawContext: DrawContext)
 }
 
-abstract class AbstractOGLGameObject
+interface IResourceHolder {
+    fun freeResources()
+}
 
+abstract class AbstractOGLGameObject() {
+    var gameObject: Game.GameObject? = null
+}
 
 open class GOTriangles(private val vertexBuffer: FloatBuffer,
                        private val indexBuffer: ShortBuffer,
@@ -23,14 +29,20 @@ open class GOTriangles(private val vertexBuffer: FloatBuffer,
     AbstractOGLGameObject(),
     Drawable {
 
+    companion object {
+        const val COORDS_PER_VERTEX = 3
+        /** 4 = bytes per vertex */
+        const val VERTEX_STRIDE = COORDS_PER_VERTEX * 4
+    }
+
     override fun draw(mvpMatrix: FloatArray, drawContext: DrawContext) {
         glUseProgram(drawContext.program.id)
 
         glEnableVertexAttribArray(drawContext.program.positionHandle)
         glVertexAttribPointer(
-            drawContext.program.positionHandle, OGLUtils.COORDS_PER_VERTEX,
+            drawContext.program.positionHandle, COORDS_PER_VERTEX,
             GL_FLOAT, false,
-            OGLUtils.VERTEX_STRIDE, vertexBuffer)
+            VERTEX_STRIDE, vertexBuffer)
 
         glUniform4fv(drawContext.program.colorHandle, 1, color, 0)
         glUniformMatrix4fv(drawContext.program.mvpMatrixHandle, 1, false, mvpMatrix, 0)

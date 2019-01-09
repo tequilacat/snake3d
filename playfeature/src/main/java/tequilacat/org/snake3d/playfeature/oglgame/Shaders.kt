@@ -1,12 +1,29 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
 import android.opengl.GLES20
+import android.util.Log
 
 
 open class OGLProgram(vertexShader: String, fragmentShader: String) {
+    private fun loadShader(type: Int, shaderCode: String) = GLES20.glCreateShader(type)
+        .also { shader ->
+            // add the source code to the shader and compile it
+            GLES20.glShaderSource(shader, shaderCode)
+            GLES20.glCompileShader(shader)
+
+            val compileStatus = IntArray(1)
+            GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compileStatus, 0)
+
+            // If the compilation failed, delete the shader.
+            if (compileStatus[0] == 0) {
+                Log.e("render", "error compiling shader $shader")
+                // glDeleteShader(shader)
+            }
+        }
+
     val id: Int = GLES20.glCreateProgram().also {
-        GLES20.glAttachShader(it, OGLUtils.loadShader(GLES20.GL_VERTEX_SHADER, vertexShader))
-        GLES20.glAttachShader(it, OGLUtils.loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShader))
+        GLES20.glAttachShader(it, loadShader(GLES20.GL_VERTEX_SHADER, vertexShader))
+        GLES20.glAttachShader(it, loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShader))
         GLES20.glLinkProgram(it)
     }
 }

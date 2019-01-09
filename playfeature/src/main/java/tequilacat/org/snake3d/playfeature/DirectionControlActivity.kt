@@ -86,7 +86,7 @@ class DirectionControlActivity : AppCompatActivity(), SensorEventListener {
                     c = surfaceHolder!!.lockCanvas(null)
                     synchronized(surfaceHolder!!){
 //                        val stt = System.nanoTime()
-                        gameView!!.game.tick()
+                        gameView!!.game.tick(Game.GameControlImpulse.NONE)
                         gameView!!.draw(c)
 //                        val end = (System.nanoTime() - stt) / 1_000_000 // in ms
 //                        Log.d("perf", "tick and paint ${end} ms")

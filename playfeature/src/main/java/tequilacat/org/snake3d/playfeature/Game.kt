@@ -25,8 +25,10 @@ class Game {
     val fieldWidth get() = currentLevel.fieldWidth.toFloat()
     val fieldHeight get() = currentLevel.fieldHeight.toFloat()
 
+    val fieldObjects get() = fieldObjectList as Collection<GameObject>
+
     // objects on field
-    private val fieldObjects = mutableListOf<GameObject>()
+    private val fieldObjectList = mutableListOf<GameObject>()
     private val bodySegments = LinkedList<BodySegment>()
 
     private var lastInteractionTimeNs: Long = 0
@@ -35,7 +37,7 @@ class Game {
     /**
      * length to add while moving head - if positive we add head but don't cut tail
      */
-    var pendingLength: Double = 0.0
+    private var pendingLength: Double = 0.0
 
     companion object {
         // Assume SI: meters, seconds
@@ -79,10 +81,10 @@ class Game {
             (x + otherRadius).toFloat(),
             (y + otherRadius).toFloat() )
                 && run {
-            var dx = centerX - x
-            var dy = centerY - y
-            var sqDistance = dx * dx + dy * dy
-            var twoRadiuses = radius + otherRadius
+            val dx = centerX - x
+            val dy = centerY - y
+            val sqDistance = dx * dx + dy * dy
+            val twoRadiuses = radius + otherRadius
             sqDistance < twoRadiuses * twoRadiuses
         }
     }
@@ -98,7 +100,7 @@ class Game {
         try {
             seed()
         } catch (e: Exception) {
-            fieldObjects.clear()
+            fieldObjectList.clear()
         }
 
         bodySegments.clear()
@@ -113,8 +115,8 @@ class Game {
      * seeds field with initial
      */
     private fun seed() {
-        fieldObjects.clear()
-//        fieldObjects.addAll(listOf(
+        fieldObjectList.clear()
+//        fieldObjectList.addAll(listOf(
 //            GameObject(GameObject.Type.PICKABLE, 50.0, 50.0),
 //            GameObject(GameObject.Type.PICKABLE, 50.0, 20.0),
 //            GameObject(GameObject.Type.PICKABLE, 50.0, 30.0),
@@ -136,14 +138,14 @@ class Game {
                     objX = Random.nextDouble(MARGIN, fieldWidth - MARGIN)
                     objY = Random.nextDouble(MARGIN, fieldHeight - MARGIN)
                     tries--
-                    objPlaced = !fieldObjects.any() { it.isColliding(objX, objY, pair.first.radius) }
+                    objPlaced = !fieldObjectList.any() { it.isColliding(objX, objY, pair.first.radius) }
                 } while (!objPlaced && tries > 0)
 
                 if(!objPlaced) {
                     throw IllegalArgumentException("Cannot randomly place that much game objects")
                 }
 
-                fieldObjects.add(GameObject(pair.first, objX, objY))
+                fieldObjectList.add(GameObject(pair.first, objX, objY))
             }
         }
     }
@@ -163,18 +165,22 @@ class Game {
         lastRoll = roll.toDouble()
     }
 
-    private fun getEffectiveRotateAngle() = when {
+    private fun getEffectiveRotateAngle(gameControlImpulse: GameControlImpulse? = null) = when {
+        gameControlImpulse == GameControlImpulse.LEFT -> ROTATE_ANGLE_PER_LEN
+        gameControlImpulse == GameControlImpulse.RIGHT -> -ROTATE_ANGLE_PER_LEN
+        gameControlImpulse == GameControlImpulse.NONE -> 0.0
+        // these called when null is provided (2d controls)
         (lastRoll > TILT_THRESHOLD) -> -ROTATE_ANGLE_PER_LEN
         (lastRoll < -TILT_THRESHOLD) -> ROTATE_ANGLE_PER_LEN
         else -> 0.0
     }
 
-    val fillPainter = Paint().apply {
+    private val fillPainter = Paint().apply {
         style = Paint.Style.FILL
         isAntiAlias = false
     }
 
-    fun drawGameObject(c:Canvas, gameObject: GameObject, ratio: Double) {
+    private fun drawGameObject(c:Canvas, gameObject: GameObject, ratio: Double) {
         fillPainter.color = when(gameObject.type) {
             GameObject.Type.OBSTACLE -> 0xffff0000.toInt()
             GameObject.Type.PICKABLE -> 0xff0000ff.toInt()
@@ -211,9 +217,13 @@ class Game {
      * draws onto canvas in specified rect, with specified ratio
      * centered on head
      */
-    fun drawGameField(c: Canvas, viewWidth: Int, viewHeight: Int) {
+    private fun drawGameField(c: Canvas, viewWidth: Int, viewHeight: Int) {
 
     }
+
+    val headX get() = bodySegments.last.endX.toFloat()
+    val headY get() = bodySegments.last.endY.toFloat()
+    val headAngle get() = bodySegments.last.angle
 
     fun drawGameScreen(c: Canvas, viewWidth: Int, viewHeight: Int) {
         c.drawColor(0xff3affbd.toInt())
@@ -223,7 +233,7 @@ class Game {
 
         c.drawRect(0f, 0f, (fieldWidth * ratio), (fieldHeight * ratio), Paints.linePaint)
 
-        for (obj in fieldObjects) {
+        for (obj in fieldObjectList) {
             drawGameObject(c, obj, ratio.toDouble())
         }
 
@@ -282,37 +292,65 @@ class Game {
      *  computing the next position and checking all obstacles/pickables on the way to the new location
      */
 
-    fun tick() {
+    enum class TickResult {
+        NONE,
+        MOVE,
+        CONSUME,
+        INITGAME
+    }
+
+    // no faster than 50 FPS - 20 ms
+    val MIN_STEP_NS: Long = 20_000_000 // nanoseconds
+
+    enum class GameControlImpulse {
+        LEFT, RIGHT, NONE
+    }
+
+    fun tick(gameControlImpulse: GameControlImpulse): TickResult {
+        val tickResult: TickResult
+
         val curNanoTime = System.nanoTime()
+        if (curNanoTime - lastInteractionTimeNs < MIN_STEP_NS) return TickResult.NONE
+
+        // Log.d("render", "${(curNanoTime - lastInteractionTimeNs) / 1_000_000f} ms")
+
         // check movement since last analysis
         val step = SPEED_M_NS * (curNanoTime - lastInteractionTimeNs)
         // check angle delta
-        val deltaAngle = getEffectiveRotateAngle()
+        val deltaAngle = getEffectiveRotateAngle(gameControlImpulse)
 
-        processBody(step, deltaAngle*step)
+        processBody(step, deltaAngle * step)
         dbgStatus = "${bodySegments.size}"
 
         val last = bodySegments.last
 
         if (last.endX < 0 || last.endX >= fieldWidth || last.endY < 0 || last.endY >= fieldHeight) {
             init()
-        } else {
-            var collidingObj = fieldObjects.firstOrNull() { it.isColliding(last.endX, last.endY, R_HEAD) }
+            tickResult = TickResult.INITGAME
 
-            if (collidingObj?.type == GameObject.Type.OBSTACLE) {
-                init()
-            } else if (collidingObj?.type == GameObject.Type.PICKABLE) {
-                fieldObjects.remove(collidingObj)
-                pendingLength += collidingObj.radius * 2
+        } else {
+            val collidingObj = fieldObjectList.firstOrNull { it.isColliding(last.endX, last.endY, R_HEAD) }
+
+            when(collidingObj?.type) {
+                GameObject.Type.OBSTACLE -> {
+                    init()
+                    tickResult = TickResult.INITGAME
+                }
+                GameObject.Type.PICKABLE -> {
+                    fieldObjectList.remove(collidingObj)
+                    pendingLength += collidingObj.radius * 2
+                    tickResult = TickResult.CONSUME
+                }
+                else -> tickResult = TickResult.MOVE
             }
         }
 
-
         lastInteractionTimeNs = System.nanoTime()
+        return tickResult
     }
 
     // moves a body along the
-    fun processBody(step: Double, deltaAngle: Double) {
+    private fun processBody(step: Double, deltaAngle: Double) {
 
         // have at least one - extend or add it, then subtract from tail
         if (deltaAngle == 0.0) {

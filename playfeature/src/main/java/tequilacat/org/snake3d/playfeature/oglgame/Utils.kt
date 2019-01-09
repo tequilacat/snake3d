@@ -19,7 +19,7 @@ class TriangleBuilder {
         vertexes.forEach { storedVertexes.add(it) }
         val currentBase = freeIndex
 
-        indexes.forEach() {
+        indexes.forEach {
             val index : Short = (currentBase + it).toShort()
             if (freeIndex < index) {
                 freeIndex = index

@@ -2,71 +2,58 @@ package tequilacat.org.snake3d.playfeature.oglgame
 
 import android.graphics.Color
 import android.opengl.GLES20.*
+import android.opengl.GLSurfaceView
 import android.opengl.Matrix
-import android.util.Log
-import java.nio.FloatBuffer
-import java.nio.ShortBuffer
-import android.opengl.GLES20.GL_COMPILE_STATUS
 import tequilacat.org.snake3d.playfeature.Game
-import kotlin.math.PI
+import javax.microedition.khronos.egl.EGLConfig
+import javax.microedition.khronos.opengles.GL10
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
-
-class OGLUtils {
-    companion object {
-        const val COORDS_PER_VERTEX = 3
-        /** 4 = bytes per vertex */
-        const val VERTEX_STRIDE = COORDS_PER_VERTEX * 4
-
-        fun loadShader(type: Int, shaderCode: String) = glCreateShader(type)
-            .also { shader ->
-                // add the source code to the shader and compile it
-                glShaderSource(shader, shaderCode)
-                glCompileShader(shader)
-
-                val compileStatus = IntArray(1)
-                glGetShaderiv(shader, GL_COMPILE_STATUS, compileStatus, 0)
-
-                // If the compilation failed, delete the shader.
-                if (compileStatus[0] == 0) {
-                    Log.e("render", "error compiling shader $shader")
-                    // glDeleteShader(shader)
-                }
-            }
-
-    }
-}
 
 /**
  * stores opengl data from the game
  */
-class OGLGameScene(private val game: Game) {
+class GameRenderer() : GLSurfaceView.Renderer  {
 
-    interface IResourceHolder {
-        fun freeResources()
+    // override Renderer
+
+    override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+        controlState = Game.GameControlImpulse.NONE
+        initOnSurfaceCreated()
     }
 
-    private val gameObjects = mutableListOf<AbstractOGLGameObject>()
+    override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
+        initViewOnSurfaceChanged(width, height)
+    }
 
-    private var initialized = false
+    override fun onDrawFrame(gl: GL10?) {
+        val stt = System.nanoTime()
+        draw()
+        val time = (System.nanoTime() - stt)/ 1_000_000.0
+        // Log.d("render", "onDrawFrame: $time ms")
+    }
+
+    // Game related code
+    private var controlState: Game.GameControlImpulse = Game.GameControlImpulse.NONE
+    private val game = Game()
+
+
+    private val gameObjects = mutableListOf<AbstractOGLGameObject>()
 
     // lateinit var defaultProgram: DefaultProgram
     private lateinit var drawContext: DrawContext
 
-    fun initInstance() {
-        if (!initialized) {
-            initialized = true
-            drawContext = DrawContext(DefaultProgram())
-
-            // "Skybox" color
-            glClearColor(0.2f, 0.2f, 0.2f, 1f)
-
-            glEnable(GL_DEPTH_TEST)
+    private fun initOnSurfaceCreated() {
+        drawContext = DrawContext(DefaultProgram())
+        // "Skybox" color
+        glClearColor(0.2f, 0.2f, 0.2f, 1f)
+        glEnable(GL_DEPTH_TEST)
 //            glCullFace(GL_BACK)
 //            glEnable(GL_CULL_FACE)
-        }
 
         createLevel()
+        updateControls(null, false)
     }
 
     private fun freeResources() {
@@ -113,8 +100,19 @@ class OGLGameScene(private val game: Game) {
         gameObjects.add(GOTriangles(floorBuilder.buildVertexBuffer(),
             floorBuilder.buildIndexBuffer(), Color.BLUE.toColorArray()))
 
-        gameObjects.add(GORectPrism(5f, fH/2, 2f, 12, 0f, 1f, Color.CYAN))
-        gameObjects.add(GORectPrism(9.5f, fH/2 + 0.5f, 2f, 6, 0f, 1f, Color.RED))
+        game.fieldObjects.forEach {
+            gameObjects.add(
+                GORectPrism(
+                    it.centerX.toFloat(), it.centerY.toFloat(), it.radius.toFloat(),
+                    4, floorZ, bodyUnit * 2,
+                    if (it.type == Game.GameObject.Type.OBSTACLE) 0xff0000 else 0x00ff00
+                ).apply {
+                    if(it.type == Game.GameObject.Type.PICKABLE) {
+                        this.gameObject = it
+                    }
+                }
+            )
+        }
 
         // (re)create all data from static non-changed during movement
         // TODO create walls
@@ -123,24 +121,48 @@ class OGLGameScene(private val game: Game) {
         // TODO create lightings
     }
 
+    private fun updateConsumables() {
+        val gameObjSet = game.fieldObjects.toSet()
+        gameObjects.removeAll(
+            gameObjects.filter { it.gameObject != null && !gameObjSet.contains(it.gameObject!!) })
+    }
+
     private val projectionMatrix = FloatArray(16)
     private val reusedViewMatrix = FloatArray(16)
     private val reusedMvpMatrix = FloatArray(16)
 
-    private fun adjustViewAngle() {
-        val eyeH = bodyUnit() * 3
-        val fh = game.fieldHeight
-
-        // Set the camera position (View matrix)
-        Matrix.setLookAtM(reusedViewMatrix, 0,
-//            0f, 0f, eyeH,
-            0f, fh/2, eyeH,
-            1f, fh/2, eyeH,
-            0f, 0.0f, 1.0f);
+    /**
+     * notifies renderer that user pressed or dragged finger horizontally,
+     * -1f to 1f, where 1f is screen width dragged from original touch.
+     * Null is passed when user has released pointer.
+     * left is negative.
+     */
+    fun updateControls(horizontalDrag: Float?, startGesture: Boolean) {
+        controlState = when {
+            horizontalDrag == null || abs(horizontalDrag) < 0.1 ->
+                Game.GameControlImpulse.NONE
+            horizontalDrag < 0.1 ->
+                Game.GameControlImpulse.LEFT
+            else ->
+                Game.GameControlImpulse.RIGHT
+        }
     }
 
-    fun initView(width: Int, height: Int) {
-        glViewport(0, 0, width, height);
+    private fun adjustViewAngle() {
+        val eyeH = bodyUnit() * 3
+
+        val cx = game.headX
+        val cy = game.headY
+        val angle = game.headAngle
+
+        Matrix.setLookAtM(reusedViewMatrix, 0,
+            cx, cy, eyeH,
+            cx + cos(angle).toFloat(), cy + sin(angle).toFloat(), eyeH,
+            0f, 0.0f, 1.0f)
+    }
+
+    private fun initViewOnSurfaceChanged(width: Int, height: Int) {
+        glViewport(0, 0, width, height)
 
         val ratio = width.toFloat() / height
         // this projection matrix is applied to object coordinates
@@ -149,12 +171,22 @@ class OGLGameScene(private val game: Game) {
     }
 
     fun draw() {
+        // tick
+        val tickResult = game.tick(controlState)
+//        Log.d("render", "Tick result: $tickResult")
+
+        when(tickResult) {
+            Game.TickResult.CONSUME -> updateConsumables()
+            Game.TickResult.INITGAME -> createLevel()
+            else -> {}
+        }
+
         adjustViewAngle()
         // draws OGL scene
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
         // Calculate the projection and view transformation
-        Matrix.multiplyMM(reusedMvpMatrix, 0, projectionMatrix, 0, reusedViewMatrix, 0);
+        Matrix.multiplyMM(reusedMvpMatrix, 0, projectionMatrix, 0, reusedViewMatrix, 0)
 
         gameObjects.forEach { if(it is Drawable) { it.draw(reusedMvpMatrix, drawContext) }}
     }
