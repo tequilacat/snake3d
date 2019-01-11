@@ -7,6 +7,7 @@ import android.opengl.Matrix
 import tequilacat.org.snake3d.playfeature.Game
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
@@ -40,6 +41,7 @@ class GameRenderer() : GLSurfaceView.Renderer  {
 
 
     private val gameObjects = mutableListOf<AbstractOGLGameObject>()
+    private val bodyObject = BodyShape()
 
     // lateinit var defaultProgram: DefaultProgram
     private lateinit var drawContext: DrawContext
@@ -114,6 +116,9 @@ class GameRenderer() : GLSurfaceView.Renderer  {
             )
         }
 
+        bodyObject.update(game)
+        gameObjects.add(bodyObject)
+
         // (re)create all data from static non-changed during movement
         // TODO create walls
         // TODO create field floor
@@ -176,9 +181,12 @@ class GameRenderer() : GLSurfaceView.Renderer  {
 //        Log.d("render", "Tick result: $tickResult")
 
         when(tickResult) {
-            Game.TickResult.CONSUME -> updateConsumables()
+            Game.TickResult.CONSUME -> {
+                updateConsumables()
+                bodyObject.update(game) }
+            Game.TickResult.MOVE -> bodyObject.update(game)
             Game.TickResult.INITGAME -> createLevel()
-            else -> {}
+            Game.TickResult.NONE -> {}
         }
 
         adjustViewAngle()

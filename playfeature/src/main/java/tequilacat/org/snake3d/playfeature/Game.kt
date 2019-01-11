@@ -3,7 +3,6 @@ package tequilacat.org.snake3d.playfeature
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
-import android.util.Log
 import java.util.*
 import kotlin.math.cos
 import kotlin.math.sin
@@ -29,7 +28,9 @@ class Game {
 
     // objects on field
     private val fieldObjectList = mutableListOf<GameObject>()
-    private val bodySegments = LinkedList<BodySegment>()
+    private val bodySegmentsList = LinkedList<BodySegment>()
+
+    val bodySegments get() = bodySegmentsList as Collection<BodySegment>
 
     private var lastInteractionTimeNs: Long = 0
     private var lastRoll = 0.0
@@ -103,8 +104,8 @@ class Game {
             fieldObjectList.clear()
         }
 
-        bodySegments.clear()
-        bodySegments.addFirst(BodySegment(MARGIN / 2, MARGIN / 2, 0.0, R_HEAD * 4))
+        bodySegmentsList.clear()
+        bodySegmentsList.addFirst(BodySegment(MARGIN / 2, MARGIN / 2, 0.0, R_HEAD * 4))
 
         // just set initial timestamp
         continueGame()
@@ -221,9 +222,9 @@ class Game {
 
     }
 
-    val headX get() = bodySegments.last.endX.toFloat()
-    val headY get() = bodySegments.last.endY.toFloat()
-    val headAngle get() = bodySegments.last.angle
+    val headX get() = bodySegmentsList.last.endX.toFloat()
+    val headY get() = bodySegmentsList.last.endY.toFloat()
+    val headAngle get() = bodySegmentsList.last.angle
 
     fun drawGameScreen(c: Canvas, viewWidth: Int, viewHeight: Int) {
         c.drawColor(0xff3affbd.toInt())
@@ -237,7 +238,7 @@ class Game {
             drawGameObject(c, obj, ratio.toDouble())
         }
 
-        for (segment in bodySegments) {
+        for (segment in bodySegmentsList) {
             val x0 = (segment.startX * ratio).toFloat()
             val y0 = (segment.startY * ratio).toFloat()
             val x1 = (segment.endX * ratio).toFloat()
@@ -246,7 +247,7 @@ class Game {
             c.drawCircle(x0, y0, (R_HEAD / 2 * ratio).toFloat(), Paints.bodyPaint)
         }
 
-        val head = bodySegments.last
+        val head = bodySegmentsList.last
         val headX = head.endX * ratio
         val headY = head.endY * ratio
         // draw head with direction as
@@ -320,9 +321,9 @@ class Game {
         val deltaAngle = getEffectiveRotateAngle(gameControlImpulse)
 
         processBody(step, deltaAngle * step)
-        dbgStatus = "${bodySegments.size}"
+        dbgStatus = "${bodySegmentsList.size}"
 
-        val last = bodySegments.last
+        val last = bodySegmentsList.last
 
         if (last.endX < 0 || last.endX >= fieldWidth || last.endY < 0 || last.endY >= fieldHeight) {
             init()
@@ -354,10 +355,10 @@ class Game {
 
         // have at least one - extend or add it, then subtract from tail
         if (deltaAngle == 0.0) {
-            bodySegments.last.extend(step)
+            bodySegmentsList.last.extend(step)
         } else {
-            bodySegments.addLast(BodySegment(bodySegments.last.endX, bodySegments.last.endY,
-                bodySegments.last.angle + deltaAngle, step))
+            bodySegmentsList.addLast(BodySegment(bodySegmentsList.last.endX, bodySegmentsList.last.endY,
+                bodySegmentsList.last.angle + deltaAngle, step))
         }
 
         pendingLength -= step
@@ -366,14 +367,14 @@ class Game {
         if (pendingLength < 0) {
             pendingLength = -pendingLength
 
-            while(bodySegments.first.length <= pendingLength) {
-                pendingLength -= bodySegments.first.length
-                bodySegments.removeFirst()
+            while(bodySegmentsList.first.length <= pendingLength) {
+                pendingLength -= bodySegmentsList.first.length
+                bodySegmentsList.removeFirst()
             }
 
             if(pendingLength > 0) {
                 // partial remove of first element
-                bodySegments.first.cutTail(pendingLength)
+                bodySegmentsList.first.cutTail(pendingLength)
             }
 
             pendingLength = 0.0
@@ -383,8 +384,8 @@ class Game {
 }
 
 class BodySegment(var startX: Double, var startY: Double, val angle: Double, var length: Double) {
-    private var sinus = sin(angle)
-    private var cosinus = cos(angle)
+    val angleSinus = sin(angle)
+    val angleCosinus = cos(angle)
 
     var endX: Double = 0.0
     var endY: Double = 0.0
@@ -394,8 +395,8 @@ class BodySegment(var startX: Double, var startY: Double, val angle: Double, var
     }
 
     private fun computeEnd() {
-        endX = startX + length * cosinus
-        endY = startY + length * sinus
+        endX = startX + length * angleCosinus
+        endY = startY + length * angleSinus
     }
 
     fun extend(step: Double) {
@@ -405,7 +406,7 @@ class BodySegment(var startX: Double, var startY: Double, val angle: Double, var
 
     fun cutTail(minusLength: Double) {
         length -= minusLength
-        startX += minusLength * cosinus
-        startY += minusLength * sinus
+        startX += minusLength * angleCosinus
+        startY += minusLength * angleSinus
     }
 }

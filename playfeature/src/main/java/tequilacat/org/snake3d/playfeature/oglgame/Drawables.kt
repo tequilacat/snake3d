@@ -1,6 +1,7 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
 import android.opengl.GLES20.*
+import tequilacat.org.snake3d.playfeature.BodySegment
 import tequilacat.org.snake3d.playfeature.Game
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
@@ -125,6 +126,107 @@ class GORectPrism(cx: Float, cy: Float, radius: Float, sides: Int,
             }
 
             return array
+        }
+    }
+}
+
+
+class BodyShape :
+    AbstractOGLGameObject(),
+    Drawable {
+
+    override fun draw(mvpMatrix: FloatArray, drawContext: DrawContext) {
+    }
+
+    private companion object {
+        private val BS_SIDE_COUNT = 6
+        private val BS_ANGLES = Array(BS_SIDE_COUNT) {
+            Pair(sin(PI * 2 / BS_SIDE_COUNT * it).toFloat(),
+                cos(PI * 2 / BS_SIDE_COUNT * it).toFloat())
+        }
+    }
+
+    // some safe guesses
+    private var vertexes: FloatArray = FloatArray(1000)
+    private var indexes: ShortArray = ShortArray(2000)
+
+    private fun initSizes(segmentCount: Int) {
+        val vertexCoordCount = BS_SIDE_COUNT * (segmentCount + 1) * 3
+
+        if(vertexes.size < vertexCoordCount) {
+            vertexes = FloatArray(vertexCoordCount * 2)
+        }
+
+        // 2 triangle each of 3 vert for each face of a segment
+        val indexSize = segmentCount * BS_SIDE_COUNT * 2 * 3
+
+        if(indexes.size < indexSize) {
+            indexes = ShortArray(indexSize * 2)
+        }
+    }
+    
+    /**
+     * rebuilds geometry from current body
+     */
+    fun update(game: Game) {
+        initSizes(game.bodySegments.size)
+
+        val bodyRadius = Game.R_HEAD.toFloat()
+        var vPos = 0
+        // var dAlpla: Float = (PI * 2 / BS_SIDE_COUNT).toFloat()
+        var curSegmentStartVertexIndex = 0
+        var indexPos = 0 // pos in the vertex buffer
+
+        // iterate and create segments
+        val iter = game.bodySegments.iterator()
+
+        while (iter.hasNext()) {
+            val cx: Float
+            val cy: Float
+            val segment: BodySegment
+
+            if (vPos == 0) {
+                segment = game.bodySegments.first()
+                cx = segment.startX.toFloat()
+                cy = segment.startY.toFloat()
+            } else {
+                segment = iter.next()
+                cx = segment.endX.toFloat()
+                cy = segment.endY.toFloat()
+
+                // for each segment add triangles between its start and end slice
+                // vPos points to first pos of the (nonfilled) end slice of current segment
+                for (i in 0 until BS_SIDE_COUNT) {
+                    val p0 = curSegmentStartVertexIndex + i - 1
+                    var p1 = p0 + 1
+                    if (i == BS_SIDE_COUNT - 1) {
+                        p1 -= BS_SIDE_COUNT
+                    }
+                    val np0 = p0 + BS_SIDE_COUNT
+                    val np1 = p1 + BS_SIDE_COUNT
+                        //if (i < BS_SIDE_COUNT - 1) i + 1 else 0
+                    indexes[indexPos++] = p0.toShort()
+                    indexes[indexPos++] = np0.toShort()
+                    indexes[indexPos++] = np1.toShort()
+
+                    indexes[indexPos++] = p0.toShort()
+                    indexes[indexPos++] = np1.toShort()
+                    indexes[indexPos++] = p1.toShort()
+
+                }
+                curSegmentStartVertexIndex += BS_SIDE_COUNT
+            }
+
+            // val angle = segment.angle.toFloat()
+
+            for ((aSin, aCos) in BS_ANGLES) {
+                // compute coord of every vertex of the segment
+                val dx0 = bodyRadius * aCos
+                // val dy0 = bodyRadius * aSin
+                vertexes[vPos++] = (cx + dx0 * segment.angleSinus).toFloat()
+                vertexes[vPos++] = (cy - dx0 * segment.angleCosinus).toFloat()
+                vertexes[vPos++] = bodyRadius + bodyRadius * aSin
+            }
         }
     }
 }
