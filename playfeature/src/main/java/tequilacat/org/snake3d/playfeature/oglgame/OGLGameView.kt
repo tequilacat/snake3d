@@ -104,16 +104,18 @@ class GameRenderer() : GLSurfaceView.Renderer  {
 
         game.fieldObjects.forEach {
             gameObjects.add(
+                /*
                 GORectPrism(
                     it.centerX.toFloat(), it.centerY.toFloat(), it.radius.toFloat(),
                     4, floorZ, bodyUnit * 2,
-                    if (it.type == Game.GameObject.Type.OBSTACLE) 0xff0000 else 0x00ff00
-                ).apply {
+
+                )*/
+                makePrism(it.centerX.toFloat(), it.centerY.toFloat(), floorZ, bodyUnit * 2,
+                    it.radius.toFloat(), 4, if (it.type == Game.GameObject.Type.OBSTACLE) 0xff0000 else 0x00ff00)
+                    .apply {
                     if(it.type == Game.GameObject.Type.PICKABLE) {
                         this.gameObject = it
-                    }
-                }
-            )
+                    }})
         }
 
         bodyObject.update(game)
@@ -125,6 +127,15 @@ class GameRenderer() : GLSurfaceView.Renderer  {
         // TODO create obstacles
         // TODO create lightings
     }
+
+    private fun makePrism(
+        centerX: Float, centerY: Float, floorZ: Float, height: Float, radius: Float,
+        sides: Int, color: Int
+    ): GORectPrism =
+        GORectPrism(
+            centerX, centerY, radius,
+            sides, floorZ, height,
+            color)
 
     private fun updateConsumables() {
         val gameObjSet = game.fieldObjects.toSet()
@@ -154,14 +165,15 @@ class GameRenderer() : GLSurfaceView.Renderer  {
 
     private fun adjustViewAngle() {
         val eyeH = bodyUnit() * 3
+        val backDistance = bodyUnit() * 3
 
-        val cx = game.headX
-        val cy = game.headY
-        val angle = game.headAngle
+        val cx: Float = (game.headX - game.headCosinus * backDistance).toFloat()
+        val cy: Float = (game.headY - game.headSinus * backDistance).toFloat()
+        // val angle = game.headAngle
 
         Matrix.setLookAtM(reusedViewMatrix, 0,
             cx, cy, eyeH,
-            cx + cos(angle).toFloat(), cy + sin(angle).toFloat(), eyeH,
+            cx + game.headCosinus, cy + game.headSinus, eyeH,
             0f, 0.0f, 1.0f)
     }
 
@@ -197,5 +209,8 @@ class GameRenderer() : GLSurfaceView.Renderer  {
 
         gameObjects.forEach { if(it is Drawable) { it.draw(drawContext) }}
 
+        // draw head
+        makePrism(game.headX, game.headY, 0f, bodyUnit(), Game.R_HEAD.toFloat(), 6, 0xffff00.toInt())
+            .draw(drawContext)
     }
 }

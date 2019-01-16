@@ -222,9 +222,11 @@ class Game {
 
     }
 
+    val headSinus get() = bodySegmentsList.last.angleSinus.toFloat()
+    val headCosinus get() = bodySegmentsList.last.angleCosinus.toFloat()
     val headX get() = bodySegmentsList.last.endX.toFloat()
     val headY get() = bodySegmentsList.last.endY.toFloat()
-    val headAngle get() = bodySegmentsList.last.angle
+    // val headAngle get() = bodySegmentsList.last.angle
 
     fun drawGameScreen(c: Canvas, viewWidth: Int, viewHeight: Int) {
         c.drawColor(0xff3affbd.toInt())
