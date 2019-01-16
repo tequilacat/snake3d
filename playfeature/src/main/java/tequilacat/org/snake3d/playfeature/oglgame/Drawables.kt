@@ -165,10 +165,15 @@ class BodyShape :
         }
     }
     
+
+    fun update(game: Game) {
+
+    }
+
     /**
      * rebuilds geometry from current body
      */
-    fun update(game: Game) {
+    private fun updateInt(game: Game) {
         initSizes(game.bodySegments.size)
 
         val bodyRadius = Game.R_HEAD.toFloat()
