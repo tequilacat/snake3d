@@ -10,10 +10,12 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 
-data class DrawContext(val program: DefaultProgram)
+data class DrawContext(val program: DefaultProgram) {
+    val mvpMatrix = FloatArray(16)
+}
 
 interface Drawable {
-    fun draw(mvpMatrix: FloatArray, drawContext: DrawContext)
+    fun draw(drawContext: DrawContext)
 }
 
 interface IResourceHolder {
@@ -36,7 +38,7 @@ open class GOTriangles(private val vertexBuffer: FloatBuffer,
         const val VERTEX_STRIDE = COORDS_PER_VERTEX * 4
     }
 
-    override fun draw(mvpMatrix: FloatArray, drawContext: DrawContext) {
+    override fun draw(drawContext: DrawContext) {
         glUseProgram(drawContext.program.id)
 
         glEnableVertexAttribArray(drawContext.program.positionHandle)
@@ -46,7 +48,7 @@ open class GOTriangles(private val vertexBuffer: FloatBuffer,
             VERTEX_STRIDE, vertexBuffer)
 
         glUniform4fv(drawContext.program.colorHandle, 1, color, 0)
-        glUniformMatrix4fv(drawContext.program.mvpMatrixHandle, 1, false, mvpMatrix, 0)
+        glUniformMatrix4fv(drawContext.program.mvpMatrixHandle, 1, false, drawContext.mvpMatrix, 0)
 
         // Draw the square
         glDrawElements(GL_TRIANGLES, indexBuffer.capacity(),
@@ -135,7 +137,7 @@ class BodyShape :
     AbstractOGLGameObject(),
     Drawable {
 
-    override fun draw(mvpMatrix: FloatArray, drawContext: DrawContext) {
+    override fun draw(drawContext: DrawContext) {
     }
 
     private companion object {
@@ -164,7 +166,6 @@ class BodyShape :
             indexes = ShortArray(indexSize * 2)
         }
     }
-    
 
     fun update(game: Game) {
 

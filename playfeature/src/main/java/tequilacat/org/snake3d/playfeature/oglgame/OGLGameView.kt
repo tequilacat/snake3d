@@ -134,7 +134,6 @@ class GameRenderer() : GLSurfaceView.Renderer  {
 
     private val projectionMatrix = FloatArray(16)
     private val reusedViewMatrix = FloatArray(16)
-    private val reusedMvpMatrix = FloatArray(16)
 
     /**
      * notifies renderer that user pressed or dragged finger horizontally,
@@ -194,8 +193,9 @@ class GameRenderer() : GLSurfaceView.Renderer  {
         glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
         // Calculate the projection and view transformation
-        Matrix.multiplyMM(reusedMvpMatrix, 0, projectionMatrix, 0, reusedViewMatrix, 0)
+        Matrix.multiplyMM(drawContext.mvpMatrix, 0, projectionMatrix, 0, reusedViewMatrix, 0)
 
-        gameObjects.forEach { if(it is Drawable) { it.draw(reusedMvpMatrix, drawContext) }}
+        gameObjects.forEach { if(it is Drawable) { it.draw(drawContext) }}
+
     }
 }
