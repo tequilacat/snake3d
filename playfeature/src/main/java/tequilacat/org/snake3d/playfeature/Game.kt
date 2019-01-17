@@ -3,6 +3,7 @@ package tequilacat.org.snake3d.playfeature
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import android.os.SystemClock
 import java.util.*
 import kotlin.math.cos
 import kotlin.math.sin
@@ -32,7 +33,16 @@ class Game {
 
     val bodySegments get() = bodySegmentsList as Collection<BodySegment>
 
-    private var lastInteractionTimeNs: Long = 0
+    //private var lastInteractionTimeNs: Long = 0
+
+    private var lastInteraction: Long = -1L
+
+    var running: Boolean
+        get() = lastInteraction >= 0
+        set(value) {
+            lastInteraction = if (value) SystemClock.uptimeMillis() else -1
+        }
+
     private var lastRoll = 0.0
 
     /**
@@ -50,7 +60,7 @@ class Game {
 
         const val MARGIN = R_HEAD * 4 // margin along sizes not seeded by objects
 
-        const val SPEED_M_NS = 10.0 / 1_000_000_000 // 10 m/s
+        const val SPEED_M_NS = 10.0 / 1_000 // 10 m/s
 
         // 10 degrees per head diameter
         const val ROTATE_ANGLE_PER_LEN = (Math.PI / 5) / (R_HEAD * 2)
@@ -108,7 +118,7 @@ class Game {
         bodySegmentsList.addFirst(BodySegment(MARGIN / 2, MARGIN / 2, 0.0, R_HEAD * 4))
 
         // just set initial timestamp
-        continueGame()
+        //continueGame()
     }
 
 
@@ -154,9 +164,9 @@ class Game {
     /**
      * sets initial timestamp
      */
-    fun continueGame() {
-        lastInteractionTimeNs = System.nanoTime()
-    }
+//    fun continueGame() {
+//        lastInteractionTimeNs = System.nanoTime()
+//    }
 
     fun Float.f(digits: Int) = java.lang.String.format("%.${digits}f", this)
 
@@ -226,7 +236,7 @@ class Game {
     val headCosinus get() = bodySegmentsList.last.angleCosinus.toFloat()
     val headX get() = bodySegmentsList.last.endX.toFloat()
     val headY get() = bodySegmentsList.last.endY.toFloat()
-    // val headAngle get() = bodySegmentsList.last.angle
+    val headAngle get() = bodySegmentsList.last.angle.toFloat()
 
     fun drawGameScreen(c: Canvas, viewWidth: Int, viewHeight: Int) {
         c.drawColor(0xff3affbd.toInt())
@@ -303,7 +313,7 @@ class Game {
     }
 
     // no faster than 50 FPS - 20 ms
-    val MIN_STEP_NS: Long = 20_000_000 // nanoseconds
+    val MIN_STEP_MS: Long = 20 // milliseconds
 
     enum class GameControlImpulse {
         LEFT, RIGHT, NONE
@@ -312,13 +322,15 @@ class Game {
     fun tick(gameControlImpulse: GameControlImpulse): TickResult {
         val tickResult: TickResult
 
-        val curNanoTime = System.nanoTime()
-        if (curNanoTime - lastInteractionTimeNs < MIN_STEP_NS) return TickResult.NONE
+        if(!running) return TickResult.NONE
+
+        val curMsTime = SystemClock.uptimeMillis()
+        if (curMsTime - lastInteraction < MIN_STEP_MS) return TickResult.NONE
 
         // Log.d("render", "${(curNanoTime - lastInteractionTimeNs) / 1_000_000f} ms")
 
         // check movement since last analysis
-        val step = SPEED_M_NS * (curNanoTime - lastInteractionTimeNs)
+        val step = SPEED_M_NS * (curMsTime - lastInteraction)
         // check angle delta
         val deltaAngle = getEffectiveRotateAngle(gameControlImpulse)
 
@@ -348,7 +360,7 @@ class Game {
             }
         }
 
-        lastInteractionTimeNs = System.nanoTime()
+        lastInteraction = SystemClock.uptimeMillis()
         return tickResult
     }
 

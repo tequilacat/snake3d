@@ -185,7 +185,7 @@ class GameView(context: Context?) : SurfaceView(context), SurfaceHolder.Callback
     }
 
     override fun surfaceCreated(holder: SurfaceHolder?) {
-        game.continueGame()
+        game.running = true
 
         thread!!.setRunning(true)
         thread!!.start()
