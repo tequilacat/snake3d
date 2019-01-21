@@ -69,10 +69,42 @@ class GameRenderer() : GLSurfaceView.Renderer  {
     private var controlState: Game.GameControlImpulse = Game.GameControlImpulse.NONE
     private val game = Game()
 
-    class GameDrawableObject(val drawable: Drawable, val gameObject: Game.GameObject? = null)
+
+    abstract class AbstractGameObject(val gameObject: Game.GameObject?) : Drawable
+
+    class OldGameDrawableObject(private val drawable: Drawable, gameObject: Game.GameObject? = null) : AbstractGameObject(gameObject) {
+        override fun position(x: Float, y: Float, z: Float, rotateAngle: Float) = drawable.position(x, y, z, rotateAngle)
+        override fun draw(sceneContext: SceneContext) = drawable.draw(sceneContext)
+    }
+
+    // TODO template class for gameObject, move to Drawables
+    class NewDrawableObject(primaryColor: FloatArray, private val geometry: Geometry,
+                            private val geometryPainter: GeometryPainter,
+                            gameObject: Game.GameObject? = null) : AbstractGameObject(gameObject) {
+        private val objectContext = ObjectContext(primaryColor)
+
+        private val modelMatrix = FloatArray(16).also {
+            Matrix.setIdentityM(it, 0)
+        }
+
+        override fun position(x: Float, y: Float, z: Float, rotateAngle: Float) {
+            Matrix.setIdentityM(modelMatrix, 0)
+            Matrix.translateM(modelMatrix, 0, x, y, z)
+            Matrix.rotateM(modelMatrix, 0, (rotateAngle * 180 / PI).toFloat(), 0.0f, 0.0f, 1.0f)
+        }
+
+        override fun draw(sceneContext: SceneContext) {
+            geometryPainter.paint(geometry, objectContext, modelMatrix, sceneContext)
+        }
+    }
 
     /** All things to be drawn are stored here */
-    private val gameObjects = mutableListOf<GameDrawableObject>()
+    private val gameObjects = mutableListOf<AbstractGameObject>()
+
+    private var drawContext = SceneContext().apply {
+        // matrix of light position in world
+        LIGHT_POSITION.copyInto(lightPosGlobal, 0, 0, 4)
+    }
 
     private val bodyObject = BodyShape()
 
@@ -80,10 +112,23 @@ class GameRenderer() : GLSurfaceView.Renderer  {
     private lateinit var phongLightProgram: SemiPhongProgram
     private lateinit var guraudLightProgram: GuraudLightProgram
 
-    private var drawContext = DrawContext().apply {
-        // matrix of light position in world
-        LIGHT_POSITION.copyInto(lightPosGlobal, 0, 0, 4)
-    }
+    // compute all geometry once as number arrays, recreate OGL data on each surfaceCreated
+
+    private val obstacleGeometryData: GeometryData = GeometryBuilder.makePrism(0f, 0f, 0f,
+        bodyUnit() * 1.5f, Game.GameObject.Type.OBSTACLE.radius.toFloat(), 8, true)
+        .run { GeometryBuilder.makeFacettedGeometryData(first, second) }
+
+    private val pickableGeometryData: GeometryData = GeometryBuilder.makePrism(0f, 0f, 0f,
+        bodyUnit() * 1.5f, Game.GameObject.Type.PICKABLE.radius.toFloat(), 8, true)
+        .run { GeometryBuilder.makeFacettedGeometryData(first, second) }
+
+    private var headGeometryData: GeometryData = GeometryBuilder.makePrism(0f, 0f, 0f,
+        bodyUnit(), Game.R_HEAD.toFloat(), 8, true)
+        .run { GeometryBuilder.makeFacettedGeometryData(first, second) }
+
+    private lateinit var obstacleGeometry: Geometry
+    private lateinit var pickableGeometry: Geometry
+    private lateinit var headGeometry: Geometry
 
     private fun initOnSurfaceCreated() {
         game.running = true
@@ -92,11 +137,17 @@ class GameRenderer() : GLSurfaceView.Renderer  {
         phongLightProgram = SemiPhongProgram()
         guraudLightProgram = GuraudLightProgram()
 
+        // build VBO buffers for head and obstacles- in onSurfaceCreated old buffers should be freed
+        // TODO check if VBOs are really freed on restart
+        obstacleGeometry = Geometry(obstacleGeometryData)
+        headGeometry = Geometry(headGeometryData)
+        pickableGeometry = Geometry(pickableGeometryData)
+
         glClearColor(ObjColors.SKY.rgb[0], ObjColors.SKY.rgb[1], ObjColors.SKY.rgb[2], 1f)
         glEnable(GL_DEPTH_TEST)
 
-//            glCullFace(GL_BACK)
-//            glEnable(GL_CULL_FACE)
+        glCullFace(GL_BACK)
+        glEnable(GL_CULL_FACE)
 
         createLevel()
         updateControls(null,null, false)
@@ -141,9 +192,17 @@ class GameRenderer() : GLSurfaceView.Renderer  {
             x += tileSpace
         }
 
-        gameObjects.add(GameDrawableObject(ShadedGeometryPainter(
-            floorBuilder.toArrays().run{ explode(first, second)},
-            ObjColors.FLOOR.rgb, guraudLightProgram)))
+        // TODO restore guraud-lighted floor after test of utilities
+//        gameObjects.add(GameDrawableObject(ShadedGeometryPainter(
+//            floorBuilder.toArrays().run{ explode(first, second)},
+//            ObjColors.FLOOR.rgb, guraudLightProgram)))
+
+        val floor = OldGameDrawableObject(FlatGeometryPainter(
+            floorBuilder.toArrays().run{ TriangleGeometry(first, second, false)},
+            // floorBuilder.toArrays().run{ explode(first, second)},
+            ObjColors.FLOOR.rgb, defaultProgram))
+        gameObjects.add(floor)
+
 
         val objHeight = bodyUnit * 1.5f
         val obstacleGeom = GeometryBuilder.makePrism(0f, 0f, floorZ, objHeight,
@@ -156,35 +215,62 @@ class GameRenderer() : GLSurfaceView.Renderer  {
             Game.R_HEAD.toFloat(), 8, true)
             .run { explode(first, second) }
 
+
         gameObjects.addAll(game.fieldObjects.map {
-            GameDrawableObject(
+            OldGameDrawableObject(
                 ShadedGeometryPainter(
                     (if (it.type == Game.GameObject.Type.OBSTACLE) obstacleGeom else pickableGeom),
                     if (it.type == Game.GameObject.Type.OBSTACLE) ObjColors.OBSTACLE.rgb else ObjColors.PICKABLE.rgb,
                     phongLightProgram
-                ).apply { position(it.centerX.toFloat(), it.centerY.toFloat(), 0f, 0f) }, it
-            )
+                ), it
+            ).apply { position(it.centerX.toFloat(), it.centerY.toFloat(), 0f, 0f) }
         })
 
-        headObj = GameDrawableObject(
-            ShadedGeometryPainter(
-                headGeom, ObjColors.BODY.rgb, phongLightProgram
-            ).apply { position(game.headX, game.headY, 0f, 0f) }
-        )
+        headObj = OldGameDrawableObject(
+            ShadedGeometryPainter(headGeom, ObjColors.BODY.rgb, phongLightProgram)
+        ).apply { position(game.headX, game.headY, 0f, 0f) }
+
+        // create but reset, to see if it affects anything
+//        gameObjects.clear()
+//        gameObjects.add(floor)
+
+/*
+*/
+
+        // TODO painters in createSurface
+        /*val phongPainter = ShadedPainter(phongLightProgram)
+
+        gameObjects.addAll(game.fieldObjects.map {
+            NewDrawableObject(
+                if (it.type == Game.GameObject.Type.OBSTACLE) ObjColors.OBSTACLE.rgb else ObjColors.PICKABLE.rgb,
+                if (it.type == Game.GameObject.Type.OBSTACLE) obstacleGeometry else pickableGeometry,
+                phongPainter
+            )})
+
+        headObj = NewDrawableObject(ObjColors.BODY.rgb, headGeometry, phongPainter)
+        */
+
+
+
         gameObjects.add(headObj!!)
 
-        bodyObject.update(game)
+        updateBody()
         // gameObjects.add(bodyObject)
+    }
+
+    private fun updateBody() {
+        bodyObject.update(game)
     }
 
     private fun explode(vertexes:FloatArray, indexes:ShortArray) : TriangleGeometryWithNormals {
         return GeometryBuilder.makeFacettedGeometry(vertexes, indexes).run {
-            TriangleGeometryWithNormals(first.toBuffer(), ShortArray(0).toBuffer(), second.toBuffer())
+            TriangleGeometryWithNormals(first.toBuffer(),
+                ShortArray(0).toBuffer(), second.toBuffer(), false)
         }
     }
 
     // TODO remove this temp head object and replace with full body
-    var headObj: GameDrawableObject? = null
+    var headObj: AbstractGameObject? = null
 
     private fun updateConsumables() {
         val gameObjSet = game.fieldObjects.toSet()
@@ -231,7 +317,7 @@ class GameRenderer() : GLSurfaceView.Renderer  {
         // compute light in eye pos
         Matrix.multiplyMV(drawContext.lightPosInEyeSpace, 0, drawContext.viewMatrix, 0, drawContext.lightPosGlobal, 0)
 
-        headObj!!.drawable.position(game.headX, game.headY, 0f, game.headAngle)
+        headObj!!.position(game.headX, game.headY, 0f, game.headAngle)
     }
 
     /**
@@ -254,8 +340,8 @@ class GameRenderer() : GLSurfaceView.Renderer  {
         when(tickResult) {
             Game.TickResult.CONSUME -> {
                 updateConsumables()
-                bodyObject.update(game) }
-            Game.TickResult.MOVE -> bodyObject.update(game)
+                updateBody() }
+            Game.TickResult.MOVE -> updateBody()
             Game.TickResult.INITGAME -> createLevel()
             Game.TickResult.NONE -> {}
         }
@@ -267,7 +353,7 @@ class GameRenderer() : GLSurfaceView.Renderer  {
         // Calculate the projection and view transformation
         Matrix.multiplyMM(drawContext.viewProjectionMatrix, 0, drawContext.projectionMatrix, 0, drawContext.viewMatrix, 0)
 
-        gameObjects.forEach { it.drawable.draw(drawContext) }
+        gameObjects.forEach { it.draw(drawContext) }
     }
 }
 
@@ -277,7 +363,7 @@ class BodyShape : Drawable {
     override fun position(x: Float, y: Float, z: Float, rotateAngle: Float) {
     }
 
-    override fun draw(drawContext: DrawContext) {
+    override fun draw(sceneContext: SceneContext) {
     }
 
     private companion object {
