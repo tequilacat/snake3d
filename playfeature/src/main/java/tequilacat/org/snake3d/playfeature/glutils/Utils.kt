@@ -1,10 +1,7 @@
 package tequilacat.org.snake3d.playfeature.glutils
 
-import android.opengl.GLES20.*
-import java.lang.IllegalArgumentException
 import java.nio.*
 import kotlin.math.*
-
 
 class CoordUtils {
     companion object {
@@ -52,36 +49,6 @@ class CoordUtils {
             dst[dstPos + 2] = src[srcPos + 2] * l
         }
     }
-}
-
-open class TriangleGeometry(val vertexes: FloatBuffer, val indexes: ShortBuffer, val hasNormals: Boolean) {
-
-    constructor(vertexArray: FloatArray, indexesArray: ShortArray, hasNormals: Boolean) : this(
-        vertexArray.toBuffer(),
-        indexesArray.toBuffer(),
-        hasNormals
-    )
-
-    /**
-     * if no normals in vertex array use 0 as tightly packed
-     * otherwise use 24 bytes (3floats * 4bytesperfloat * 2 )
-     * */
-    val vertexStride = if(hasNormals) 24 else 0
-
-    // TODO consider dynamic buffers
-    val indexCount by lazy { indexes.capacity() }
-
-    val coordinatesPerVertex = 3
-
-//    companion object {
-//        const val COORDS_PER_VERTEX = 3
-//        /** 4 = bytes per vertex */
-//        const val VERTEX_STRIDE = COORDS_PER_VERTEX * 4
-//    }
-}
-
-class TriangleGeometryWithNormals(vertexes: FloatBuffer, indexes: ShortBuffer, val normals: FloatBuffer, hasNormals: Boolean)
-    : TriangleGeometry(vertexes, indexes, hasNormals){
 }
 
 class GeometryBuilder {
@@ -170,45 +137,6 @@ class GeometryBuilder {
         /**
          * generates separate vertices and a normal for each vertex, without indexing
          */
-        fun makeFacettedGeometry(
-            vertexes: FloatArray,
-            indexes: ShortArray
-        ): Pair<FloatArray, FloatArray> {
-
-            // make target vertexes
-            // no reuse of vertexes - facets will be visible
-            val resVertexCount = indexes.size // for each index there will be a vertex
-            val outVertexes = FloatArray(resVertexCount * 3)
-            val normals = FloatArray(resVertexCount * 3)
-            val singleNormalCoords = FloatArray(3) // temp out array
-            var coordPtr = 0 //
-
-            for (i in 0 until indexes.size step 3) {
-                // for all 3 face vertices the normal is same so compute once
-                CoordUtils.crossProduct(singleNormalCoords, 0,
-                    vertexes, indexes[i], indexes[i + 1], indexes[i + 2])
-                CoordUtils.normalize(singleNormalCoords,0, singleNormalCoords, 0)
-
-                for(vI in 0 .. 2) {
-                    val cPos = indexes[i + vI] * 3 // position of coords
-                    normals[coordPtr] = singleNormalCoords[0]
-                    normals[coordPtr + 1] = singleNormalCoords[1]
-                    normals[coordPtr + 2] = singleNormalCoords[2]
-
-                    outVertexes[coordPtr] = vertexes[cPos]
-                    outVertexes[coordPtr + 1] = vertexes[cPos + 1]
-                    outVertexes[coordPtr + 2] = vertexes[cPos + 2]
-
-                    coordPtr += 3
-                }
-            }
-
-            return Pair(outVertexes, normals)
-        }
-
-        /**
-         * generates separate vertices and a normal for each vertex, without indexing
-         */
         fun makeFacettedGeometryData(
             vertexes: FloatArray,
             indexes: ShortArray
@@ -272,13 +200,7 @@ class GeometryBuilder {
         )
     }
 
-    fun buildVertexBuffer() = storedVertexes.toFloatArray().toBuffer()
-    fun buildIndexBuffer() = storedIndexes.toShortArray().toBuffer()
-    fun build() = TriangleGeometry(buildVertexBuffer(), buildIndexBuffer(), false)
-
     fun toArrays() = Pair(storedVertexes.toFloatArray(), storedIndexes.toShortArray())
-
-    // fun buildWithNormals() = TriangleGeometryWithNormals(storedVertexes.toFloatArray(), storedIndexes.toShortArray())
 }
 
 // initialize vertex byte buffer for shape coordinates
@@ -314,72 +236,3 @@ fun Int.toColorArray() : FloatArray = floatArrayOf(
     ((this ushr 8) and 0xff) / 255f,
     (this and 0xff) / 255f,
     1f)
-
-
-
-
-
-// new classes for VBOs
-
-data class GeometryData(val vertexes: FloatArray, val hasNormals: Boolean, val indexes: ShortArray = Static.noindexes) {
-    object Static {
-        val noindexes = ShortArray(0)
-    }
-}
-
-const val BYTES_PER_SHORT = 2
-const val BYTES_PER_FLOAT = 4
-
-class Geometry(data: GeometryData) {
-
-    // convert vertexes and indexes into
-    val vertexBufferId: Int
-    val indexBufferId: Int
-
-    // TODO consider dynamic buffers
-    val indexCount: Int
-    val vertexCount: Int
-    val hasNormals = data.hasNormals
-
-    /**
-     * if no normals in vertex array use 0 as tightly packed
-     * otherwise use 24 bytes (3floats * 4bytesperfloat * 2 )
-     * */
-    val vertexStride = if(hasNormals) 24 else 0
-
-    val coordinatesPerVertex = 3
-
-    // initialize
-    init {
-        vertexCount = data.vertexes.size / coordinatesPerVertex // 3 per
-        vertexBufferId = bindBuffer(data.vertexes.toBuffer())
-        indexCount = data.indexes.size
-        indexBufferId = if(indexCount == 0) 0 else bindBuffer(data.indexes.toBuffer())
-    }
-
-    // after we init{} the indexCount is defined
-    val hasIndexes = indexCount > 0
-
-    private fun bindBuffer(buffer: Buffer): Int {
-        val isVertexBuffer = when (buffer) {
-            is FloatBuffer -> true
-            is ShortBuffer -> false
-            else -> throw IllegalArgumentException("Buffer must be FloatBuffer or ShortBuffer")
-        }
-        val bufferId = if(isVertexBuffer) GL_ARRAY_BUFFER else GL_ELEMENT_ARRAY_BUFFER
-        val bufferIdArray = IntArray(1)
-        glGenBuffers(1, bufferIdArray, 0)
-
-        //if(bufferIdArray[0] == 0) throw
-
-        // Bind to the buffer. Future commands will affect this buffer specifically.
-        glBindBuffer(bufferId, bufferIdArray[0])
-        // Transfer data from client memory to the buffer.
-        // We can release the client memory after this call.
-        glBufferData(bufferId, buffer.capacity() * (if(isVertexBuffer) BYTES_PER_FLOAT else BYTES_PER_SHORT), buffer, GL_STATIC_DRAW)
-
-        // IMPORTANT: Unbind from the buffer when we're done with it.
-        glBindBuffer(bufferId, 0)
-        return bufferIdArray[0]
-    }
-}
