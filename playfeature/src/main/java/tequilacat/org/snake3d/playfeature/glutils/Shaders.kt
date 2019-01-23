@@ -66,7 +66,11 @@ class DefaultProgram: OGLProgram(
 /**
  * adds number of attributes used by sample lighting program used by learnopengles.com
  */
-open class LightingProgram(vertexShader: String, fragmentShader: String)  : OGLProgram(vertexShader,fragmentShader) {
+open class LightingProgram(
+    vertexShader: String, fragmentShader: String,
+    private val attNamesMap: Map<String, String> = mapOf()
+) : OGLProgram(vertexShader, fragmentShader) {
+
     val attMVPMatrixHandle by lazy { glGetUniformLocation(id, "u_MVPMatrix") }
     val attMVMatrixHandle by lazy { glGetUniformLocation(id, "u_MVMatrix") }
     val attLightPosHandle by lazy { glGetUniformLocation(id, "u_LightPos") }
@@ -197,7 +201,7 @@ class SemiPhongProgram(vertexShader: String, fragmentShader: String) :
 
             // Calculate the dot product of the light vector and vertex normal. If the normal and light vector are
             // pointing in the same direction then it will get max illumination.
-            float diffuse = max(dot(v_Normal, lightVector), 0.1);
+            float diffuse = max(dot(v_Normal, lightVector), 0.0);
 
             // Add attenuation.
             // Will be used for attenuation.
@@ -205,8 +209,90 @@ class SemiPhongProgram(vertexShader: String, fragmentShader: String) :
             // float distance = length(u_LightPos - v_Position);
             // diffuse = diffuse * (1.0 / (1.0 + (0.25 * distance * distance)));
 
+            // light up
+            diffuse = diffuse + 0.3;
             // Multiply the color by the diffuse illumination level to get final output color.
             gl_FragColor = v_Color * diffuse;
         }
     """.trimIndent())
 }
+
+class TextureProgram(vertexShader: String, fragmentShader: String) :
+    OGLProgram(vertexShader, fragmentShader) {
+
+    val attMVPMatrixHandle by lazy { glGetUniformLocation(id, "u_MVPMatrix") }
+    val attMVMatrixHandle by lazy { glGetUniformLocation(id, "u_MVMatrix") }
+    val attLightPosHandle by lazy { glGetUniformLocation(id, "u_LightPos") }
+    val attPositionHandle by lazy { glGetAttribLocation(id, "a_Position") }
+    val attNormalHandle by lazy { glGetAttribLocation(id, "a_Normal") }
+
+    // add new
+    val uTexture by lazy { glGetUniformLocation(id, "u_Texture") }
+    val aTexCoordinate by lazy { glGetAttribLocation(id, "a_TexCoordinate") }
+
+    // note the vec4 position instead of vec3 as before!
+
+    constructor() : this("""
+        uniform mat4 u_MVPMatrix;		// A constant representing the combined model/view/projection matrix.
+        uniform mat4 u_MVMatrix;		// A constant representing the combined model/view matrix.
+
+        attribute vec4 a_Position;		// Per-vertex position information we will pass in.
+        attribute vec3 a_Normal;		// Per-vertex normal information we will pass in.
+        attribute vec2 a_TexCoordinate; // Per-vertex texture coordinate information we will pass in.
+
+        varying vec3 v_Position;		// This will be passed into the fragment shader.
+        varying vec3 v_Normal;			// This will be passed into the fragment shader.
+        varying vec2 v_TexCoordinate;   // This will be passed into the fragment shader.
+
+        // The entry point for our vertex shader.
+        void main()
+        {
+            // Transform the vertex into eye space.
+            v_Position = vec3(u_MVMatrix * a_Position);
+
+            // Pass through the texture coordinate.
+            v_TexCoordinate = a_TexCoordinate;
+
+            // Transform the normal's orientation into eye space.
+            v_Normal = vec3(u_MVMatrix * vec4(a_Normal, 0.0));
+
+            // gl_Position is a special variable used to store the final position.
+            // Multiply the vertex by the matrix to get the final point in normalized screen coordinates.
+            gl_Position = u_MVPMatrix * a_Position;
+        }
+    """.trimIndent(), """
+        precision mediump float;       	// Set the default precision to medium. We don't need as high of a
+                                        // precision in the fragment shader.
+        uniform vec3 u_LightPos;       	// The position of the light in eye space.
+        uniform sampler2D u_Texture;    // The input texture.
+
+        varying vec3 v_Position;		// Interpolated position for this fragment.
+        varying vec3 v_Normal;         	// Interpolated normal for this fragment.
+        varying vec2 v_TexCoordinate;   // Interpolated texture coordinate per fragment.
+
+        // The entry point for our fragment shader.
+        void main()
+        {
+            // Will be used for attenuation.
+            float distance = length(u_LightPos - v_Position);
+
+            // Get a lighting direction vector from the light to the vertex.
+            vec3 lightVector = normalize(u_LightPos - v_Position);
+
+            // Calculate the dot product of the light vector and vertex normal. If the normal and light vector are
+            // pointing in the same direction then it will get max illumination.
+            float diffuse = max(dot(v_Normal, lightVector), 0.0);
+
+            // Add attenuation.
+            diffuse = diffuse * (1.0 / (1.0 + (0.25 * distance)));
+
+            // Add ambient lighting
+            diffuse = diffuse + 0.7;
+
+            // Multiply the color by the diffuse illumination level and texture value to get final output color.
+            gl_FragColor = (diffuse * texture2D(u_Texture, v_TexCoordinate));
+        }
+
+    """.trimIndent())
+}
+

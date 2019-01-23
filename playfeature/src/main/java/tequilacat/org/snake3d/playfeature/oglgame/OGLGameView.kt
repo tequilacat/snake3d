@@ -1,12 +1,16 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
+import android.content.Context
+import android.graphics.BitmapFactory
 import android.opengl.GLES20.*
 import android.opengl.GLSurfaceView
+import android.opengl.GLUtils
 import android.opengl.Matrix
 import android.os.SystemClock
 import android.util.Log
 import tequilacat.org.snake3d.playfeature.BodySegment
 import tequilacat.org.snake3d.playfeature.Game
+import tequilacat.org.snake3d.playfeature.R
 import tequilacat.org.snake3d.playfeature.glutils.*
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
@@ -18,7 +22,7 @@ import kotlin.math.sin
 /**
  * stores opengl data from the game
  */
-class GameRenderer : GLSurfaceView.Renderer  {
+class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
     // override Renderer
 
@@ -104,10 +108,6 @@ class GameRenderer : GLSurfaceView.Renderer  {
 
     private val bodyObject = BodyShape()
 
-    private lateinit var defaultProgram: DefaultProgram
-    private lateinit var phongLightProgram: SemiPhongProgram
-    private lateinit var guraudLightProgram: GuraudLightProgram
-
     // compute all geometry once as number arrays, recreate OGL data on each surfaceCreated
 
     private val obstacleGeometryData: GeometryData = GeometryBuilder.makePrism(0f, 0f, 0f,
@@ -126,22 +126,23 @@ class GameRenderer : GLSurfaceView.Renderer  {
     private lateinit var pickableGeometry: Geometry
     private lateinit var headGeometry: Geometry
     private lateinit var floorGeometry: Geometry
+
     private lateinit var phongPainter: GeometryPainter
     private lateinit var guraudPainter: GeometryPainter
+    private lateinit var texturePainter: TexturePainter
+    // private lateinit var textureProgram: TextureProgram
 
     private fun initOnSurfaceCreated() {
         game.running = true
 
-        defaultProgram = DefaultProgram()
-        phongLightProgram = SemiPhongProgram()
-        guraudLightProgram = GuraudLightProgram()
-
+        loadTexture(context, R.drawable.takyr_floor)
         // no need to recreate
-        phongPainter = ShadedPainter(phongLightProgram)
-        guraudPainter = ShadedPainter(guraudLightProgram)
+        phongPainter = ShadedPainter(SemiPhongProgram())
+        guraudPainter = ShadedPainter(GuraudLightProgram())
+        texturePainter = TexturePainter(TextureProgram())
 
         // build VBO buffers for head and obstacles- in onSurfaceCreated old buffers should be freed
-        // TODO check if VBOs are really freed on restart
+        // TODO check in docs whether VBOs are really freed on restart
         obstacleGeometry = Geometry(obstacleGeometryData)
         headGeometry = Geometry(headGeometryData)
         pickableGeometry = Geometry(pickableGeometryData)
@@ -306,6 +307,42 @@ class GameRenderer : GLSurfaceView.Renderer  {
         Matrix.multiplyMM(drawContext.viewProjectionMatrix, 0, drawContext.projectionMatrix, 0, drawContext.viewMatrix, 0)
 
         gameObjects.forEach { it.draw(drawContext) }
+    }
+
+    /*
+    fun loadAsset() {
+        try {
+        val json_string = application.assets.open(file_name).bufferedReader().use{
+            it.readText()
+        }
+
+            val inputStream = assets.open("news_data_file.json")
+            val inputString = inputStream.bufferedReader().use{it.readText()}
+            Log.d("res",inputString)
+        } catch (e:Exception){
+            Log.d("res", e.toString())
+        }
+    }*/
+
+    fun loadTexture(context: Context, resourceId: Int): Int {
+        val textureHandle = IntArray(1)
+        glGenTextures(1, textureHandle, 0)
+
+        if (textureHandle[0] == 0) throw RuntimeException("Error generating texture name.")
+
+        val bitmap = BitmapFactory.decodeResource(context.resources, resourceId, BitmapFactory.Options()
+            .apply { inScaled = false })
+
+        // Bind to the texture in OpenGL
+        glBindTexture(GL_TEXTURE_2D, textureHandle[0])
+        // Set filtering
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        // Load the bitmap into the bound texture.
+        GLUtils.texImage2D(GL_TEXTURE_2D, 0, bitmap, 0)
+        // Recycle the bitmap, since its data has been loaded into OpenGL.
+        bitmap.recycle()
+        return textureHandle[0]
     }
 }
 
