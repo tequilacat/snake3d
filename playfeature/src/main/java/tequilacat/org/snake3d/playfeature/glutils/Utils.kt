@@ -8,10 +8,11 @@ class CoordUtils {
         /**
          * cross product between p2-p1 and p3-p1
          */
-        fun crossProduct(target: FloatArray, targetPos: Int, coords: FloatArray, pos1: Short, pos2: Short, pos3: Short) {
-            val p1 = pos1 * 3
-            val p2 = pos2 * 3
-            val p3 = pos3 * 3
+        fun crossProduct(target: FloatArray, targetPos: Int, coords: FloatArray, pos1: Short, pos2: Short, pos3: Short,
+                         vertexStride: Int) {
+            val p1 = pos1 * vertexStride
+            val p2 = pos2 * vertexStride
+            val p3 = pos3 * vertexStride
 
             val uX = coords[p2] - coords[p1]
             val uY = coords[p2 + 1] - coords[p1 + 1]
@@ -51,53 +52,72 @@ class CoordUtils {
     }
 }
 
-class GeometryBuilder {
+class GeometryBuilder(private val textures: Boolean = false) {
+
+    private val vertexFloatStride = computeVertexFloatStride(textures)
+
+    fun makePrism(
+        cx: Float, cy: Float, zBase: Float,
+        height: Float, radius: Float, sides: Int,
+        addCap: Boolean = false
+    ): GeometryData {
+        val vertexes = makePrismVertexes(
+            cx,
+            cy,
+            radius,
+            sides,
+            zBase,
+            height,
+            textures
+        )
+        val indexes = makePrismIndexes(sides, addCap)
+        return makeFacettedGeometryData(vertexes, indexes, textures)
+    }
+
+    private fun makePrismVertexes(
+        cx: Float, cy: Float, radius: Float, sides: Int,
+        zBase: Float, height: Float, addTextureUV: Boolean
+    ): FloatArray {
+        val deltaAlpha: Float = PI.toFloat() * 2 / sides.toFloat()
+        val coords = FloatArray(sides * 2 * vertexFloatStride)
+        var pos = 0
+        var alpha = 0f
+        var t = 0f
+        val dt = 1f / sides
+
+        for (side in 0 until sides) {
+            val x = cx + radius * cos(alpha)
+            val y = cy + radius * sin(alpha)
+
+            coords[pos++] = x
+            coords[pos++] = y
+            coords[pos++] = zBase
+
+            if(addTextureUV) {
+                coords[pos++] = t
+                coords[pos++] = 1f
+            }
+
+            coords[pos++] = x
+            coords[pos++] = y
+            coords[pos++] = zBase + height
+
+            if(addTextureUV) {
+                coords[pos++] = t
+                coords[pos++] = 0f
+            }
+
+            t += dt
+            alpha += deltaAlpha
+        }
+
+        return coords
+    }
+
     companion object {
         private val RECT_VERTEX_ORDER_LIST = shortArrayOf(0, 1, 2, 0, 2, 3)
 
-        fun makePrism(
-            cx: Float, cy: Float, zBase: Float,
-            height: Float, radius: Float, sides: Int,
-            addCap: Boolean = false
-        ) = Pair(
-            makePrismVertexes(
-                cx,
-                cy,
-                radius,
-                sides,
-                zBase,
-                height
-            ),
-            makePrismIndexes(sides, addCap)
-        )
-
-        private fun makePrismVertexes(
-            cx: Float, cy: Float, radius: Float, sides: Int,
-            zBase: Float, height: Float
-        ): FloatArray {
-            val deltaAlpha: Float = PI.toFloat() * 2 / sides.toFloat()
-            val coords = FloatArray(sides * 2 * 3)
-            var pos = 0
-            var alpha = 0f
-
-            for (side in 0 until sides) {
-                val x = cx + radius * cos(alpha)
-                val y = cy + radius * sin(alpha)
-
-                coords[pos++] = x
-                coords[pos++] = y
-                coords[pos++] = zBase
-
-                coords[pos++] = x
-                coords[pos++] = y
-                coords[pos++] = zBase + height
-
-                alpha += deltaAlpha
-            }
-
-            return coords
-        }
-
+        private fun computeVertexFloatStride(textures: Boolean) = if(textures) 5 else 3
 
         /**
          * creates prism indexes for specified sides count,
@@ -139,13 +159,16 @@ class GeometryBuilder {
          */
         fun makeFacettedGeometryData(
             vertexes: FloatArray,
-            indexes: ShortArray
+            indexes: ShortArray,
+            textures: Boolean
         ): GeometryData {
+
+            val vertexFloatStride = computeVertexFloatStride(textures)
 
             // make target vertexes
             // no reuse of vertexes - facets will be visible
             val resVertexCount = indexes.size // for each index there will be a vertex
-            val outVertexes = FloatArray(resVertexCount * 3 * 2) // 3 coords, 2 vertors - coord and normal
+            val outVertexes = FloatArray(resVertexCount * (3 + vertexFloatStride)) // stride + 3 per normal
             // val normals = FloatArray(resVertexCount * 3)
             val singleNormalCoords = FloatArray(3) // temp out array
             var coordPtr = 0 //
@@ -153,15 +176,17 @@ class GeometryBuilder {
             for (i in 0 until indexes.size step 3) {
                 // for all 3 face vertices the normal is same so compute once
                 CoordUtils.crossProduct(singleNormalCoords, 0,
-                    vertexes, indexes[i], indexes[i + 1], indexes[i + 2])
+                    vertexes, indexes[i], indexes[i + 1], indexes[i + 2], vertexFloatStride)
                 CoordUtils.normalize(singleNormalCoords,0, singleNormalCoords, 0)
 
                 for(vI in 0 .. 2) {
-                    val cPos = indexes[i + vI] * 3 // position of coords
+                    val cPos = indexes[i + vI] * vertexFloatStride // position of coords
 
-                    outVertexes[coordPtr++] = vertexes[cPos]
-                    outVertexes[coordPtr++] = vertexes[cPos + 1]
-                    outVertexes[coordPtr++] = vertexes[cPos + 2]
+                    for(vPos in 0 until vertexFloatStride) {
+                        outVertexes[coordPtr++] = vertexes[cPos + vPos]
+                        //outVertexes[coordPtr++] = vertexes[cPos + 1]
+                        //outVertexes[coordPtr++] = vertexes[cPos + 2]
+                    }
 
                     outVertexes[coordPtr++] = singleNormalCoords[0]
                     outVertexes[coordPtr++] = singleNormalCoords[1]
@@ -169,7 +194,7 @@ class GeometryBuilder {
                 }
             }
 
-            return GeometryData(outVertexes, true)
+            return GeometryData(outVertexes, true, textures)
         }
     }
 
@@ -200,7 +225,8 @@ class GeometryBuilder {
         )
     }
 
-    fun toArrays() = Pair(storedVertexes.toFloatArray(), storedIndexes.toShortArray())
+    fun build() = makeFacettedGeometryData(storedVertexes.toFloatArray(),
+        storedIndexes.toShortArray(), textures)
 }
 
 // initialize vertex byte buffer for shape coordinates

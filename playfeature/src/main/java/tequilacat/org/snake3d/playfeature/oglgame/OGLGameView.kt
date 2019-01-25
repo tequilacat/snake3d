@@ -80,8 +80,9 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     // TODO template class for gameObject, move to Drawables
     class DrawableGameObject(primaryColor: FloatArray, private val geometry: Geometry,
                              private val geometryPainter: GeometryPainter,
+                             textureId: Int = -1,
                              gameObject: Game.GameObject? = null) : AbstractGameObject(gameObject) {
-        private val objectContext = ObjectContext(primaryColor)
+        private val objectContext = ObjectContext(primaryColor, textureId)
 
         private val modelMatrix = FloatArray(16).also {
             Matrix.setIdentityM(it, 0)
@@ -110,17 +111,14 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
     // compute all geometry once as number arrays, recreate OGL data on each surfaceCreated
 
-    private val obstacleGeometryData: GeometryData = GeometryBuilder.makePrism(0f, 0f, 0f,
-        bodyUnit() * 1.5f, Game.GameObject.Type.OBSTACLE.radius.toFloat(), 8, true)
-        .run { GeometryBuilder.makeFacettedGeometryData(first, second) }
+    private val pickableGeometryData: GeometryData = GeometryBuilder(textures = true).makePrism(0f, 0f, 0f,
+        bodyUnit() * 2f, Game.GameObject.Type.PICKABLE.radius.toFloat(), 12, true)
 
-    private val pickableGeometryData: GeometryData = GeometryBuilder.makePrism(0f, 0f, 0f,
-        bodyUnit() * 1.5f, Game.GameObject.Type.PICKABLE.radius.toFloat(), 8, true)
-        .run { GeometryBuilder.makeFacettedGeometryData(first, second) }
+    private val obstacleGeometryData: GeometryData = GeometryBuilder(textures = true).makePrism(0f, 0f, 0f,
+        bodyUnit() * 1.3f, Game.GameObject.Type.OBSTACLE.radius.toFloat(), 12, true)
 
-    private var headGeometryData: GeometryData = GeometryBuilder.makePrism(0f, 0f, 0f,
-        bodyUnit(), Game.R_HEAD.toFloat(), 8, true)
-        .run { GeometryBuilder.makeFacettedGeometryData(first, second) }
+    private var headGeometryData: GeometryData = GeometryBuilder(textures = true).makePrism(0f, 0f, 0f,
+        bodyUnit(), Game.R_HEAD.toFloat(), 6, true)
 
     private lateinit var obstacleGeometry: Geometry
     private lateinit var pickableGeometry: Geometry
@@ -130,16 +128,20 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     private lateinit var phongPainter: GeometryPainter
     private lateinit var guraudPainter: GeometryPainter
     private lateinit var texturePainter: TexturePainter
-    // private lateinit var textureProgram: TextureProgram
+    private var obstacleTextureId: Int = 0
+    private var pickableTextureId: Int = 0
 
     private fun initOnSurfaceCreated() {
         game.running = true
 
-        loadTexture(context, R.drawable.takyr_floor)
+        //headTextureId = loadTexture(context, R.drawable.takyr_floor)
+        obstacleTextureId = loadTexture(context, R.raw.cokecan_graphics)
+        pickableTextureId = loadTexture(context, R.raw.guinnes)
+
         // no need to recreate
-        phongPainter = ShadedPainter(SemiPhongProgram())
-        guraudPainter = ShadedPainter(GuraudLightProgram())
-        texturePainter = TexturePainter(TextureProgram())
+        phongPainter = ShadedPainter(SemiPhongProgram(context))
+        guraudPainter = ShadedPainter(GuraudLightProgram(context))
+        texturePainter = TexturePainter(TextureProgram(context))
 
         // build VBO buffers for head and obstacles- in onSurfaceCreated old buffers should be freed
         // TODO check in docs whether VBOs are really freed on restart
@@ -184,7 +186,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             x += tileSpace
         }
 
-        return floorBuilder.toArrays().run {GeometryBuilder.makeFacettedGeometryData(first,second) }
+        return floorBuilder.build()
     }
 
     /**
@@ -208,10 +210,12 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             DrawableGameObject(
                 if (it.type == Game.GameObject.Type.OBSTACLE) ObjColors.OBSTACLE.rgb else ObjColors.PICKABLE.rgb,
                 if (it.type == Game.GameObject.Type.OBSTACLE) obstacleGeometry else pickableGeometry,
-                phongPainter, it
+                texturePainter, gameObject = it,
+                textureId = if (it.type == Game.GameObject.Type.OBSTACLE) obstacleTextureId else pickableTextureId
             ).apply { position(it.centerX.toFloat(), it.centerY.toFloat(), 0f, 0f) }})
 
-        headObj = DrawableGameObject(ObjColors.BODY.rgb, headGeometry, phongPainter)
+        headObj = DrawableGameObject(ObjColors.BODY.rgb, headGeometry,
+            phongPainter)
         gameObjects.add(headObj!!)
 
         updateBody()
@@ -328,7 +332,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         val textureHandle = IntArray(1)
         glGenTextures(1, textureHandle, 0)
 
-        if (textureHandle[0] == 0) throw RuntimeException("Error generating texture name.")
+        // if (textureHandle[0] == 0) throw RuntimeException("Error generating texture name.")
 
         val bitmap = BitmapFactory.decodeResource(context.resources, resourceId, BitmapFactory.Options()
             .apply { inScaled = false })

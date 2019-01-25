@@ -1,7 +1,9 @@
 package tequilacat.org.snake3d.playfeature.glutils
 
+import android.content.Context
+import android.opengl.GLES20
 import android.opengl.GLES20.*
-import android.opengl.Matrix
+
 import android.util.Log
 import java.lang.IllegalArgumentException
 import java.nio.Buffer
@@ -9,41 +11,51 @@ import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 
 
-// new classes for VBOs
-
-data class GeometryData(val vertexes: FloatArray, val hasNormals: Boolean, val indexes: ShortArray = Static.noindexes) {
-    object Static {
-        val noindexes = ShortArray(0)
-    }
-}
-
 const val BYTES_PER_SHORT = 2
 const val BYTES_PER_FLOAT = 4
 
-class Geometry(data: GeometryData) {
+// new classes for VBOs
 
+/**
+ * Geometry stored as float array, possibly with indexes
+ */
+data class GeometryData(val vertexes: FloatArray, val hasNormals: Boolean, val hasTexture: Boolean, val indexes: ShortArray = Static.noindexes) {
+    object Static {
+        val noindexes = ShortArray(0)
+    }
+
+    /** vertex stride in bytes */
+    val vertexStride: Int
+        get() {
+            var floatStride = 3
+            if (hasNormals) floatStride += 3
+            if (hasTexture) floatStride += 2
+            return floatStride * BYTES_PER_FLOAT
+        }
+}
+
+/**
+ * Geometry stored in VBOs
+ * */
+class Geometry(data: GeometryData) {
     // convert vertexes and indexes into
     val vertexBufferId: Int
     val indexBufferId: Int
 
-    // TODO consider dynamic buffers
-    val indexCount: Int
-    val vertexCount: Int
-    val hasNormals = data.hasNormals
-
-    /**
-     * if no normals in vertex array use 0 as tightly packed
-     * otherwise use 24 bytes (3floats * 4bytesperfloat * 2 )
-     * */
-    val vertexStride = if(hasNormals) 24 else 0
-
+    val indexCount: Int = data.indexes.size
+    val vertexCount: Int = data.vertexes.size * BYTES_PER_FLOAT / data.vertexStride
+    val vertexStride = data.vertexStride
     val coordinatesPerVertex = 3
+    val floatsPerTexUV = 2
+
+    val coordBytesOffset = 0
+    val normalBytesOffset = (if (data.hasTexture) 5 else 3) * BYTES_PER_FLOAT
+    val texUvBytesOffset = 3 * BYTES_PER_FLOAT
 
     // initialize
     init {
-        vertexCount = data.vertexes.size / coordinatesPerVertex // 3 per
         vertexBufferId = bindBuffer(data.vertexes.toBuffer())
-        indexCount = data.indexes.size
+        indexCount
         indexBufferId = if(indexCount == 0) 0 else bindBuffer(data.indexes.toBuffer())
     }
 
@@ -116,140 +128,68 @@ interface GeometryPainter {
     fun paint(geometry: Geometry, objectContext: ObjectContext, modelMatrix: FloatArray, sceneContext: SceneContext)
 }
 
-class ObjectContext(val primaryColor: FloatArray)
+class ObjectContext(val primaryColor: FloatArray, val textureId: Int) {
 
-class ShadedPainter(private val program: LightingProgram) : GeometryPainter {
-    private val mMVMatrix = FloatArray(16)
-    private val mMVPMatrix = FloatArray(16)
-
-    override fun paint(geometry: Geometry, objectContext: ObjectContext, modelMatrix: FloatArray, sceneContext: SceneContext) {
-        // current impl does not paint indexes!
-
-        glUseProgram(program.id)
-
-        //////////////////////////////
-        // prepare data
-
-        // set uniform color
-        glUniform4fv(program.attColorHandle, 1, objectContext.primaryColor, 0)
-        glUniform3f(
-            program.attLightPosHandle, sceneContext.lightPosInEyeSpace[0],
-            sceneContext.lightPosInEyeSpace[1], sceneContext.lightPosInEyeSpace[2]
-        )
-
-        // uniforms
-
-        // This multiplies the view matrix by the model matrix, and stores the result in the MVP matrix
-        // (which currently contains model * view).
-        Matrix.multiplyMM(mMVMatrix, 0, sceneContext.viewMatrix, 0, modelMatrix, 0)
-
-        // Pass in the modelview matrix.
-        glUniformMatrix4fv(program.attMVMatrixHandle, 1, false, mMVMatrix, 0)
-
-        // This multiplies the modelview matrix by the projection matrix, and stores the result in the MVP matrix
-        // (which now contains model * view * projection).
-        Matrix.multiplyMM(mMVPMatrix, 0, sceneContext.projectionMatrix, 0, mMVMatrix, 0)
-
-        // Pass in the combined matrix.
-        glUniformMatrix4fv(program.attMVPMatrixHandle, 1, false, mMVPMatrix, 0)
-
-
-        ///////////////////////////
-        // draw VBOs
-
-
-        glBindBuffer(GL_ARRAY_BUFFER, geometry.vertexBufferId)
-
-        // Bind Attributes
-        glVertexAttribPointer(program.attPositionHandle, geometry.coordinatesPerVertex, GL_FLOAT,
-            false, geometry.vertexStride, 0)
-        glEnableVertexAttribArray(program.attPositionHandle)
-
-        glVertexAttribPointer(program.attNormalHandle, geometry.coordinatesPerVertex, GL_FLOAT,
-            false, geometry.vertexStride, geometry.coordinatesPerVertex * BYTES_PER_FLOAT)
-        glEnableVertexAttribArray(program.attNormalHandle)
-
-        // Draw
-        if (geometry.hasIndexes) {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.indexBufferId)
-            glDrawElements(GL_TRIANGLE_STRIP, geometry.indexCount, GL_UNSIGNED_SHORT, 0)
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
-        } else {
-            glDrawArrays(GL_TRIANGLES, 0, geometry.vertexCount)
-        }
-
-        glDisableVertexAttribArray(program.attPositionHandle)
-        glDisableVertexAttribArray(program.attNormalHandle)
-        checkGlErr()
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
-    }
 }
 
 
-class TexturePainter(private val program: TextureProgram) : GeometryPainter {
-    private val mMVMatrix = FloatArray(16)
-    private val mMVPMatrix = FloatArray(16)
+open class OGLProgram(vertexShader: String, fragmentShader: String, vararg attNames: String) {
+    constructor(context:Context, vertexShaderResId: Int, fragmentShaderResId: Int) :
+            this(readResourceText(context, vertexShaderResId), readResourceText(context, fragmentShaderResId))
 
-    override fun paint(geometry: Geometry, objectContext: ObjectContext, modelMatrix: FloatArray, sceneContext: SceneContext) {
+    enum class PAType {
+        ATTRIBUTE, UNIFORM
+    }
 
-        glUseProgram(program.id)
+    data class PA(val name: String, val type: PAType, val program: OGLProgram) {
+        val id by lazy {
+            when (type) {
+                PAType.ATTRIBUTE -> glGetAttribLocation(program.id, name)
+                PAType.UNIFORM -> glGetUniformLocation(program.id, name)
+            }
+        }
+    }
 
-        //////////////////////////////
-        // prepare data
+    /*
+    val u = uniform("")
+    val a = attr("")
+     */
 
-        // set uniform color
-        // glUniform4fv(program.attColorHandle, 1, objectContext.primaryColor, 0)
-        glUniform3f(
-            program.attLightPosHandle, sceneContext.lightPosInEyeSpace[0],
-            sceneContext.lightPosInEyeSpace[1], sceneContext.lightPosInEyeSpace[2]
-        )
+    protected fun attr(name: String) = PA(name, PAType.ATTRIBUTE, this)
+    protected fun uniform(name: String) = PA(name, PAType.UNIFORM, this)
 
-        // uniforms
+    companion object {
+        fun readResourceText(context: Context, resourceId: Int): String {
+            return context.resources.openRawResource(resourceId).use {
+                    r -> r.readBytes().toString(Charsets.UTF_8)
+            }
+        }
+    }
 
-        // This multiplies the view matrix by the model matrix, and stores the result in the MVP matrix
-        // (which currently contains model * view).
-        Matrix.multiplyMM(mMVMatrix, 0, sceneContext.viewMatrix, 0, modelMatrix, 0)
+    private fun loadShader(type: Int, shaderCode: String) = GLES20.glCreateShader(type)
+        .also { shader ->
+            // add the source code to the shader and compile it
+            GLES20.glShaderSource(shader, shaderCode)
+            GLES20.glCompileShader(shader)
 
-        // Pass in the modelview matrix.
-        glUniformMatrix4fv(program.attMVMatrixHandle, 1, false, mMVMatrix, 0)
+            val compileStatus = IntArray(1)
+            GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compileStatus, 0)
 
-        // This multiplies the modelview matrix by the projection matrix, and stores the result in the MVP matrix
-        // (which now contains model * view * projection).
-        Matrix.multiplyMM(mMVPMatrix, 0, sceneContext.projectionMatrix, 0, mMVMatrix, 0)
+            // If the compilation failed, delete the shader.
+            if (compileStatus[0] == 0) {
+                Log.e("render", "error compiling shader #$shader: ${glGetShaderInfoLog(shader)}")
+                glDeleteShader(shader)
+            }
 
-        // Pass in the combined matrix.
-        glUniformMatrix4fv(program.attMVPMatrixHandle, 1, false, mMVPMatrix, 0)
-
-
-        ///////////////////////////
-        // draw VBOs
-
-
-        glBindBuffer(GL_ARRAY_BUFFER, geometry.vertexBufferId)
-
-        // Bind Attributes
-        glVertexAttribPointer(program.attPositionHandle, geometry.coordinatesPerVertex, GL_FLOAT,
-            false, geometry.vertexStride, 0)
-        glEnableVertexAttribArray(program.attPositionHandle)
-
-        glVertexAttribPointer(program.attNormalHandle, geometry.coordinatesPerVertex, GL_FLOAT,
-            false, geometry.vertexStride, geometry.coordinatesPerVertex * BYTES_PER_FLOAT)
-        glEnableVertexAttribArray(program.attNormalHandle)
-
-        // Draw
-        if (geometry.hasIndexes) {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.indexBufferId)
-            glDrawElements(GL_TRIANGLE_STRIP, geometry.indexCount, GL_UNSIGNED_SHORT, 0)
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
-        } else {
-            glDrawArrays(GL_TRIANGLES, 0, geometry.vertexCount)
         }
 
-        glDisableVertexAttribArray(program.attPositionHandle)
-        glDisableVertexAttribArray(program.attNormalHandle)
-        checkGlErr()
+    val id: Int = GLES20.glCreateProgram().also {
+        GLES20.glAttachShader(it, loadShader(GLES20.GL_VERTEX_SHADER, vertexShader))
+        GLES20.glAttachShader(it, loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShader))
+        GLES20.glLinkProgram(it)
 
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        for (i in attNames.indices) {
+            glBindAttribLocation(it, i, attNames[i])
+        }
     }
 }
