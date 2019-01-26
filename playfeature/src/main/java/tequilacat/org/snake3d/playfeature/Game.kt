@@ -262,7 +262,7 @@ class Game {
         val head = bodySegmentsList.last
         val headX = head.endX * ratio
         val headY = head.endY * ratio
-        // draw head with direction as
+        // drawGameFrame head with direction as
         c.drawCircle(headX.toFloat(), headY.toFloat(), (Game.R_HEAD * ratio).toFloat(), Paints.headPaint)
         c.drawLine(
             headX.toFloat(), headY.toFloat(), (headX + Game.R_HEAD * ratio * cos(head.angle)).toFloat(),
@@ -285,7 +285,7 @@ class Game {
         rcRect.offset(rcRect.width() * 2, 0f)
         c.drawRect(rcRect, fillPainter.apply { color = if (deltaAngle > 0) segColorActive else segColorInactive })
 
-        // draw circle on distance from center
+        // drawGameFrame circle on distance from center
         val rotateBallRadius = rcHeight * 0.35f
         var rotateBallX = (viewWidth / 2 - lastRoll / TILT_THRESHOLD * rcSegmentWidth / 2).toFloat()
 

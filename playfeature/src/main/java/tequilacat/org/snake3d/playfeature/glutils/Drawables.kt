@@ -32,6 +32,8 @@ data class GeometryData(val vertexes: FloatArray, val hasNormals: Boolean, val h
             if (hasTexture) floatStride += 2
             return floatStride * BYTES_PER_FLOAT
         }
+
+    val hasIndexes = indexes.isNotEmpty()
 }
 
 /**
@@ -55,7 +57,6 @@ class Geometry(data: GeometryData) {
     // initialize
     init {
         vertexBufferId = bindBuffer(data.vertexes.toBuffer())
-        indexCount
         indexBufferId = if(indexCount == 0) 0 else bindBuffer(data.indexes.toBuffer())
     }
 
@@ -131,7 +132,6 @@ interface GeometryPainter {
 class ObjectContext(val primaryColor: FloatArray, val textureId: Int) {
 
 }
-
 
 open class OGLProgram(vertexShader: String, fragmentShader: String, vararg attNames: String) {
     constructor(context:Context, vertexShaderResId: Int, fragmentShaderResId: Int) :

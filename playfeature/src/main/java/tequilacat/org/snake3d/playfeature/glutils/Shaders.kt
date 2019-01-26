@@ -67,7 +67,7 @@ class ShadedPainter(private val program: LightingProgram) : GeometryPainter {
 
 
         ///////////////////////////
-        // draw VBOs
+        // drawGameFrame VBOs
 
         // start position for coords: 0
         // start position for normals:
@@ -86,7 +86,7 @@ class ShadedPainter(private val program: LightingProgram) : GeometryPainter {
         // Draw
         if (geometry.hasIndexes) {
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.indexBufferId)
-            glDrawElements(GL_TRIANGLE_STRIP, geometry.indexCount, GL_UNSIGNED_SHORT, 0)
+            glDrawElements(GL_TRIANGLES, geometry.indexCount, GL_UNSIGNED_SHORT, 0)
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
         } else {
             glDrawArrays(GL_TRIANGLES, 0, geometry.vertexCount)
@@ -162,7 +162,7 @@ class TexturePainter(private val program: TextureProgram) : GeometryPainter {
         glUniform1i(program.uTexture.id, 0);
 
         ///////////////////////////
-        // draw VBOs
+        // drawGameFrame VBOs
 
 
         glBindBuffer(GL_ARRAY_BUFFER, geometry.vertexBufferId)
@@ -183,7 +183,7 @@ class TexturePainter(private val program: TextureProgram) : GeometryPainter {
         // Draw
         if (geometry.hasIndexes) {
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.indexBufferId)
-            glDrawElements(GL_TRIANGLE_STRIP, geometry.indexCount, GL_UNSIGNED_SHORT, 0)
+            glDrawElements(GL_TRIANGLES, geometry.indexCount, GL_UNSIGNED_SHORT, 0)
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
         } else {
             glDrawArrays(GL_TRIANGLES, 0, geometry.vertexCount)
