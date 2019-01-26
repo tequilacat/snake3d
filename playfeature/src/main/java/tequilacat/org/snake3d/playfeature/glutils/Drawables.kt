@@ -1,8 +1,11 @@
 package tequilacat.org.snake3d.playfeature.glutils
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.opengl.GLES20
 import android.opengl.GLES20.*
+import android.opengl.GLES30.*
+import android.opengl.GLUtils
 
 import android.util.Log
 import java.lang.IllegalArgumentException
@@ -104,6 +107,66 @@ fun checkGlErr() {
     }
 }
 
+fun loadSkybox(context: Context, vararg faceIds: Int): Int {
+    glActiveTexture(GL_TEXTURE0);
+    //checkGlErr()
+//    glEnable(GL_TEXTURE_CUBE_MAP);
+//    checkGlErr()
+
+    val textureHandle = IntArray(1)
+    glGenTextures(1, textureHandle, 0)
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureHandle[0]);
+
+    for ((i, faceId) in faceIds.withIndex()) {
+        val bitmap = BitmapFactory.decodeResource(context.resources, faceId, BitmapFactory.Options()
+            .apply { inScaled = false })
+        GLUtils.texImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, bitmap, 0)
+//        glTexImage2D(
+//                GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+//                0, GL_RGB, bitmap.width, bitmap.height, 0, GL_RGB, GL_UNSIGNED_BYTE, bitmap
+//            )
+
+        bitmap.recycle()
+    }
+
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE)
+
+
+    // added from CommonMistakes
+//    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_BASE_LEVEL, 0)
+//    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_LEVEL, 0)
+
+    checkGlErr()
+
+    // TODO do we need glBindTexture(GL_TEXTURE_CUBE_MAP, 0) here ?
+    return textureHandle[0]
+}
+
+fun loadTexture(context:Context, resourceId: Int): Int {
+    val textureHandle = IntArray(1)
+    glGenTextures(1, textureHandle, 0)
+
+    // if (textureHandle[0] == 0) throw RuntimeException("Error generating texture name.")
+
+    val bitmap = BitmapFactory.decodeResource(context.resources, resourceId, BitmapFactory.Options()
+        .apply { inScaled = false })
+
+    // Bind to the texture in OpenGL
+    glBindTexture(GL_TEXTURE_2D, textureHandle[0])
+    // Set filtering
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+    // Load the bitmap into the bound texture.
+    GLUtils.texImage2D(GL_TEXTURE_2D, 0, bitmap, 0)
+    // Recycle the bitmap, since its data has been loaded into OpenGL.
+    bitmap.recycle()
+    return textureHandle[0]
+}
+
 class SceneContext {
     /** screen dimension and frustum */
     val projectionMatrix = FloatArray(16)
@@ -129,9 +192,9 @@ interface GeometryPainter {
     fun paint(geometry: Geometry, objectContext: ObjectContext, modelMatrix: FloatArray, sceneContext: SceneContext)
 }
 
-class ObjectContext(val primaryColor: FloatArray, val textureId: Int) {
+class ObjectContext(val primaryColor: FloatArray, val textureId: Int)
 
-}
+
 
 open class OGLProgram(vertexShader: String, fragmentShader: String, vararg attNames: String) {
     constructor(context:Context, vertexShaderResId: Int, fragmentShaderResId: Int) :
@@ -157,14 +220,6 @@ open class OGLProgram(vertexShader: String, fragmentShader: String, vararg attNa
 
     protected fun attr(name: String) = PA(name, PAType.ATTRIBUTE, this)
     protected fun uniform(name: String) = PA(name, PAType.UNIFORM, this)
-
-    companion object {
-        fun readResourceText(context: Context, resourceId: Int): String {
-            return context.resources.openRawResource(resourceId).use {
-                    r -> r.readBytes().toString(Charsets.UTF_8)
-            }
-        }
-    }
 
     private fun loadShader(type: Int, shaderCode: String) = GLES20.glCreateShader(type)
         .also { shader ->

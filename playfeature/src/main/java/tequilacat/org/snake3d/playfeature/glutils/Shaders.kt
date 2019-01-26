@@ -155,11 +155,11 @@ class TexturePainter(private val program: TextureProgram) : GeometryPainter {
 
         /// texture activate
         // Set the active texture unit to texture unit 0.
-        glActiveTexture(GL_TEXTURE0);
+        glActiveTexture(GL_TEXTURE0)
         // Bind the texture to this unit.
-        glBindTexture(GL_TEXTURE_2D, objectContext.textureId);
+        glBindTexture(GL_TEXTURE_2D, objectContext.textureId)
         // Tell the texture uniform sampler to use this texture in the shader by binding to texture unit 0.
-        glUniform1i(program.uTexture.id, 0);
+        glUniform1i(program.uTexture.id, 0)
 
         ///////////////////////////
         // drawGameFrame VBOs
@@ -195,5 +195,98 @@ class TexturePainter(private val program: TextureProgram) : GeometryPainter {
         checkGlErr()
 
         glBindBuffer(GL_ARRAY_BUFFER, 0)
+    }
+}
+
+class SkyboxProgram(context: Context)
+    : OGLProgram(readResourceText(context, R.raw.skybox_1), readResourceText(context, R.raw.skybox_2)) {
+    // val uSkybox = uniform("skybox")
+    val uProjectionMatrix = uniform("projection")
+    val uViewMatrix = uniform("projection")
+    val aPos = attr("aPos")
+}
+
+class SkyboxProgramPainter(context: Context) :
+    OGLProgram(readResourceText(context, R.raw.skybox_1), readResourceText(context, R.raw.skybox_2)) {
+
+    val aPosition = attr("position")
+    val uMvMatrix = uniform("modelViewMatrix")
+    val uProjectionMatrix = uniform("projectionMatrix")
+    val uSampler = uniform("Sampler")
+
+    // "right.jpg", "left.jpg", "top.jpg", "bottom.jpg", "front.jpg", "back.jpg"
+    private val skyboxTextureId: Int = loadSkybox(
+        context, R.raw.sb1_right, R.raw.sb1_left, R.raw.sb1_top,
+        R.raw.sb1_bottom, R.raw.sb1_front, R.raw.sb1_back
+    )
+
+    private val geometry = Geometry(
+        GeometryData(
+            floatArrayOf(
+                -1.0f, -1.0f, 1.0f,
+                1.0f, -1.0f, 1.0f,
+                -1.0f, 1.0f, 1.0f,
+                1.0f, 1.0f, 1.0f,
+                -1.0f, -1.0f, -1.0f,
+                1.0f, -1.0f, -1.0f,
+                -1.0f, 1.0f, -1.0f,
+                1.0f, 1.0f, -1.0f
+            ), false, false, shortArrayOf(0, 1, 2, 3, 7, 1, 5, 4, 7, 6, 2, 4, 0, 1)
+        ))
+
+    fun paint(sceneContext: SceneContext) {
+        glUseProgram(id)
+
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTextureId)
+        // they say they need it
+        glUniform1i(uSampler.id, 0)
+
+        // copy view matrix, remove translation (for proper cube mapping)
+        // and rotate since used images require such rotation
+        val viewMatrix = FloatArray(16) { i-> sceneContext.viewMatrix[i] }
+        viewMatrix[3] = 0f
+        viewMatrix[7] = 0f
+        viewMatrix[11] = 0f
+        viewMatrix[12] = 0f
+        viewMatrix[13] = 0f
+        viewMatrix[14] = 0f
+        viewMatrix[15] = 1f
+        Matrix.rotateM(viewMatrix, 0, 90f, 1f, 0f, 0f)
+
+        // set matrixes
+        glUniformMatrix4fv(uMvMatrix.id, 1, false, viewMatrix, 0)
+        glUniformMatrix4fv(uProjectionMatrix.id, 1, false, sceneContext.projectionMatrix, 0)
+
+        val paramValues = IntArray(2)
+        glGetIntegerv(GL_CULL_FACE_MODE, paramValues, 0)
+        glGetIntegerv(GL_DEPTH_FUNC, paramValues, 1)
+        val oldCullface = paramValues[0]
+        val oldDepthFunc = paramValues[1]
+
+        glDepthFunc(GL_LEQUAL)
+        glCullFace(GL_FRONT)
+
+        // vertxes
+        glBindBuffer(GL_ARRAY_BUFFER, geometry.vertexBufferId)
+        glVertexAttribPointer(aPosition.id, geometry.coordinatesPerVertex, GL_FLOAT,
+            false, 3 * BYTES_PER_FLOAT, geometry.coordBytesOffset)
+        glEnableVertexAttribArray(aPosition.id)
+
+        // indexes
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.indexBufferId)
+        glDrawElements(GL_TRIANGLE_STRIP, geometry.indexCount, GL_UNSIGNED_SHORT, 0)
+
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
+        // disable
+        glDisableVertexAttribArray(aPosition.id)
+
+        glDepthFunc(oldDepthFunc)
+        glCullFace(oldCullface)
+
+        checkGlErr()
     }
 }

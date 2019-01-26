@@ -57,7 +57,8 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     /** vysota v holke - 2 head radiuses */
     private fun bodyUnit() = (Game.R_HEAD * 2f).toFloat()
 
-    private val LIGHT_POSITION = floatArrayOf(0f, 0f, 20f, 1f)
+    // positioned according to currently used skybox images
+    private val LIGHT_POSITION = floatArrayOf(0f, 100f, 20f, 1f)
 
     // defines FOV
     private val nearPlaneDist = 1.2f
@@ -99,6 +100,8 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     private lateinit var phongPainter: GeometryPainter
     private lateinit var guraudPainter: GeometryPainter
     private lateinit var texturePainter: TexturePainter
+    private lateinit var skyboxPainter: SkyboxProgramPainter
+
     private var obstacleTextureId: Int = 0
     private var pickableTextureId: Int = 0
     private var floorTileTextureId: Int = 0
@@ -107,14 +110,15 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         game.running = true
 
         //headTextureId = loadTexture(context, R.drawable.takyr_floor)
-        obstacleTextureId = loadTexture(R.raw.cokecan_graphics)
-        pickableTextureId = loadTexture(R.raw.guinnes)
-        floorTileTextureId = loadTexture(R.raw.oldtiles)
+        obstacleTextureId = loadTexture(context, R.raw.cokecan_graphics)
+        pickableTextureId = loadTexture(context, R.raw.guinnes)
+        floorTileTextureId = loadTexture(context, R.raw.oldtiles)
 
         // no need to recreate
         phongPainter = ShadedPainter(SemiPhongProgram(context))
         guraudPainter = ShadedPainter(GuraudLightProgram(context))
         texturePainter = TexturePainter(TextureProgram(context))
+        skyboxPainter = SkyboxProgramPainter(context)
 
         // build VBO buffers for head and obstacles- in onSurfaceCreated old buffers should be freed
         // TODO check in docs whether VBOs are really freed on restart
@@ -175,7 +179,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     }
 
     // TODO remove this temp head object and replace with full body
-    var headObj: AbstractGameObject? = null
+    private var headObj: AbstractGameObject? = null
 
     private fun updateConsumables() {
         val gameObjSet = game.fieldObjects.toSet()
@@ -259,27 +263,9 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         Matrix.multiplyMM(drawContext.viewProjectionMatrix, 0, drawContext.projectionMatrix, 0, drawContext.viewMatrix, 0)
 
         gameObjects.forEach { it.draw(drawContext) }
+
+        skyboxPainter.paint(drawContext)
     }
 
-    fun loadTexture(resourceId: Int): Int {
-        val textureHandle = IntArray(1)
-        glGenTextures(1, textureHandle, 0)
-
-        // if (textureHandle[0] == 0) throw RuntimeException("Error generating texture name.")
-
-        val bitmap = BitmapFactory.decodeResource(context.resources, resourceId, BitmapFactory.Options()
-            .apply { inScaled = false })
-
-        // Bind to the texture in OpenGL
-        glBindTexture(GL_TEXTURE_2D, textureHandle[0])
-        // Set filtering
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-        // Load the bitmap into the bound texture.
-        GLUtils.texImage2D(GL_TEXTURE_2D, 0, bitmap, 0)
-        // Recycle the bitmap, since its data has been loaded into OpenGL.
-        bitmap.recycle()
-        return textureHandle[0]
-    }
 }
 

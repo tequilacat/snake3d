@@ -1,5 +1,6 @@
 package tequilacat.org.snake3d.playfeature.glutils
 
+import android.content.Context
 import java.nio.*
 import kotlin.math.*
 
@@ -102,3 +103,9 @@ fun loadAsset() {
         Log.d("res", e.toString())
     }
 }*/
+
+fun readResourceText(context: Context, resourceId: Int): String {
+    return context.resources.openRawResource(resourceId).use {
+            r -> r.readBytes().toString(Charsets.UTF_8)
+    }
+}
