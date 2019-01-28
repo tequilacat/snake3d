@@ -214,19 +214,20 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
     private fun adjustViewAngle() {
         val eyeH = bodyUnit() * 3
+        val head = game.head
 
-        val cx: Float = (game.headX - game.headCosinus * eyeRearDistance)
-        val cy: Float = (game.headY - game.headSinus * eyeRearDistance)
+        val cx: Float = head.endX - head.alphaCosinus * eyeRearDistance
+        val cy: Float = head.endY - head.alphaSinus * eyeRearDistance
 
         Matrix.setLookAtM(drawContext.viewMatrix, 0,
             cx, cy, eyeH,
-            cx + game.headCosinus, cy + game.headSinus, eyeH,
+            cx + head.alphaCosinus, cy + head.alphaSinus, eyeH,
             0f, 0.0f, 1.0f)
 
         // compute light in eye pos
         Matrix.multiplyMV(drawContext.lightPosInEyeSpace, 0, drawContext.viewMatrix, 0, drawContext.lightPosGlobal, 0)
 
-        headObj!!.position(game.headX, game.headY, 0f, game.headAngle)
+        headObj!!.position(head.endX, head.endY, 0f, head.alpha)
     }
 
     /**

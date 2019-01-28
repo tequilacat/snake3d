@@ -232,15 +232,12 @@ class Game {
 
     }
 
-    val headSinus get() = bodySegmentsList.last.angleSinus.toFloat()
-    val headCosinus get() = bodySegmentsList.last.angleCosinus.toFloat()
-    val headX get() = bodySegmentsList.last.endX.toFloat()
-    val headY get() = bodySegmentsList.last.endY.toFloat()
-    val headAngle get() = bodySegmentsList.last.angle.toFloat()
+    val head: IBodySegment get() = bodySegmentsList.last
 
     fun drawGameScreen(c: Canvas, viewWidth: Int, viewHeight: Int) {
         c.drawColor(0xff3affbd.toInt())
 
+        val R_HEAD = Game.R_HEAD.toFloat()
         // fit width to screen: pix to logic
         val ratio: Float = (viewWidth / fieldWidth)
 
@@ -251,22 +248,21 @@ class Game {
         }
 
         for (segment in bodySegmentsList) {
-            val x0 = (segment.startX * ratio).toFloat()
-            val y0 = (segment.startY * ratio).toFloat()
-            val x1 = (segment.endX * ratio).toFloat()
-            val y1 = (segment.endY * ratio).toFloat()
+            val x0 = (segment.startX * ratio)
+            val y0 = (segment.startY * ratio)
+            val x1 = (segment.endX * ratio)
+            val y1 = (segment.endY * ratio)
             c.drawLine(x0, y0, x1, y1, Paints.bodyPaint)
-            c.drawCircle(x0, y0, (R_HEAD / 2 * ratio).toFloat(), Paints.bodyPaint)
+            c.drawCircle(x0, y0, R_HEAD / 2 * ratio, Paints.bodyPaint)
         }
 
-        val head = bodySegmentsList.last
         val headX = head.endX * ratio
         val headY = head.endY * ratio
         // drawGameFrame head with direction as
-        c.drawCircle(headX.toFloat(), headY.toFloat(), (Game.R_HEAD * ratio).toFloat(), Paints.headPaint)
+        c.drawCircle(headX, headY, R_HEAD * ratio, Paints.headPaint)
         c.drawLine(
-            headX.toFloat(), headY.toFloat(), (headX + Game.R_HEAD * ratio * cos(head.angle)).toFloat(),
-            (headY + Game.R_HEAD * ratio * sin(head.angle)).toFloat(), Paints.linePaint
+            headX, headY, (headX + R_HEAD * ratio * head.alphaCosinus),
+            (headY + R_HEAD * ratio * head.alphaSinus), Paints.linePaint
         )
 
         c.drawText(dbgStatus, 0f, fieldHeight * ratio + Paints.linePaint.textSize, Paints.linePaint)
@@ -339,12 +335,12 @@ class Game {
 
         val last = bodySegmentsList.last
 
-        if (last.endX < 0 || last.endX >= fieldWidth || last.endY < 0 || last.endY >= fieldHeight) {
+        if (last.dblEndX < 0 || last.dblEndX >= fieldWidth || last.dblEndY < 0 || last.dblEndY >= fieldHeight) {
             init()
             tickResult = TickResult.INITGAME
 
         } else {
-            val collidingObj = fieldObjectList.firstOrNull { it.isColliding(last.endX, last.endY, R_HEAD) }
+            val collidingObj = fieldObjectList.firstOrNull { it.isColliding(last.dblEndX, last.dblEndY, R_HEAD) }
 
             when(collidingObj?.type) {
                 GameObject.Type.OBSTACLE -> {
@@ -371,7 +367,7 @@ class Game {
         if (deltaAngle == 0.0) {
             bodySegmentsList.last.extend(step)
         } else {
-            bodySegmentsList.addLast(BodySegment(bodySegmentsList.last.endX, bodySegmentsList.last.endY,
+            bodySegmentsList.addLast(BodySegment(bodySegmentsList.last.dblEndX, bodySegmentsList.last.dblEndY,
                 bodySegmentsList.last.angle + deltaAngle, step))
         }
 
@@ -381,8 +377,8 @@ class Game {
         if (pendingLength < 0) {
             pendingLength = -pendingLength
 
-            while(bodySegmentsList.first.length <= pendingLength) {
-                pendingLength -= bodySegmentsList.first.length
+            while(bodySegmentsList.first.dblLength <= pendingLength) {
+                pendingLength -= bodySegmentsList.first.dblLength
                 bodySegmentsList.removeFirst()
             }
 
@@ -397,30 +393,75 @@ class Game {
 
 }
 
-class BodySegment(var startX: Double, var startY: Double, val angle: Double, var length: Double) {
+interface IBodySegment {
+    val startX: Float
+    val startY: Float
+    val startZ: Float
+
+    val endX: Float
+    val endY: Float
+    val endZ: Float
+
+    val length: Float
+
+    val alpha: Float
+    val alphaSinus: Float
+    val alphaCosinus: Float
+
+    val beta: Float
+    val betaSinus: Float
+    val betaCosinus: Float
+}
+
+class BodySegment(var dblStartX: Double, var dblStartY: Double, val angle: Double, var dblLength: Double) : IBodySegment {
+
     val angleSinus = sin(angle)
     val angleCosinus = cos(angle)
 
-    var endX: Double = 0.0
-    var endY: Double = 0.0
+    var dblEndX: Double = 0.0
+    var dblEndY: Double = 0.0
+
+
+    override val startX: Float get() = dblStartX.toFloat()
+    override val startY: Float get() = dblStartY.toFloat()
+    override val startZ: Float get() = dblStartZ.toFloat()
+    override val endX: Float get() = dblEndX.toFloat()
+    override val endY: Float get() = dblEndY.toFloat()
+    override val endZ: Float get() = dblEndZ.toFloat()
+
+    override val length: Float get() = dblLength.toFloat()
+
+    override val alpha = angle.toFloat()
+    override val alphaSinus = angleSinus.toFloat()
+    override val alphaCosinus = angleCosinus.toFloat()
+
+    // for 3d spacing - use default for flat location
+    override val beta = 0f
+    override val betaSinus = sin(beta)
+    override val betaCosinus= cos(beta)
+
+    private var dblStartZ: Double = 0.0
+    private var dblEndZ: Double = 0.0
+
+
 
     init {
         computeEnd()
     }
 
     private fun computeEnd() {
-        endX = startX + length * angleCosinus
-        endY = startY + length * angleSinus
+        dblEndX = dblStartX + dblLength * angleCosinus
+        dblEndY = dblStartY + dblLength * angleSinus
     }
 
     fun extend(step: Double) {
-        length += step
+        dblLength += step
         computeEnd()
     }
 
     fun cutTail(minusLength: Double) {
-        length -= minusLength
-        startX += minusLength * angleCosinus
-        startY += minusLength * angleSinus
+        dblLength -= minusLength
+        dblStartX += minusLength * angleCosinus
+        dblStartY += minusLength * angleSinus
     }
 }
