@@ -4,6 +4,18 @@ import android.content.Context
 import java.nio.*
 import kotlin.math.*
 
+
+const val BYTES_PER_SHORT = 2
+const val BYTES_PER_FLOAT = 4
+
+open class Empty {
+    //object  Singletons ooo {}
+    companion object Default : Empty() {
+        val ShortArray = ShortArray(0)
+        val FloatArray = FloatArray(0)
+    }
+}
+
 class CoordUtils {
     companion object {
         /**
@@ -55,28 +67,31 @@ class CoordUtils {
 }
 
 // initialize vertex byte buffer for shape coordinates
-fun FloatArray.toBuffer(): FloatBuffer {
+fun FloatArray.toBuffer(elementCount: Int = -1): FloatBuffer {
     val floatArray: FloatArray = this
+    val effCount = if (elementCount >= 0) elementCount else floatArray.size
     // (# of coordinate values * 4 bytes per float)
-    return ByteBuffer.allocateDirect(floatArray.size * 4).run {
-        order(ByteOrder.nativeOrder())
-        asFloatBuffer().apply {
-            put(floatArray)
-            position(0)
+    return ByteBuffer.allocateDirect(
+        effCount * BYTES_PER_FLOAT).run {
+            order(ByteOrder.nativeOrder())
+            asFloatBuffer().apply {
+                put(floatArray, 0, effCount)
+                position(0)
+            }
         }
-    }
 }
 
 
 // initialize byte buffer for the drawGameFrame list
-fun ShortArray.toBuffer(): ShortBuffer {
+fun ShortArray.toBuffer(elementCount: Int = -1): ShortBuffer {
     val shortArray: ShortArray = this
-
+    val effCount = if (elementCount >= 0) elementCount else shortArray.size
 // (# of coordinate values * 2 bytes per short)
-    return ByteBuffer.allocateDirect(shortArray.size * 2).run {
+    return ByteBuffer.allocateDirect(
+        (if (elementCount >= 0) elementCount else shortArray.size) * BYTES_PER_FLOAT).run {
         order(ByteOrder.nativeOrder())
         asShortBuffer().apply {
-            put(shortArray)
+            put(shortArray, 0, effCount)
             position(0)
         }
     }

@@ -182,8 +182,6 @@ class GeometryBuilder {
 
             return GeometryData(outVertexes, true, textures)
         }
-
-        val EMPTY_FLOATS = FloatArray(0)
     }
 
     private val storedVertexes = mutableListOf<Float>()
@@ -211,7 +209,7 @@ class GeometryBuilder {
         x1: Float, y1: Float, z1: Float,
         x2: Float, y2: Float, z2: Float,
         x3: Float, y3: Float, z3: Float,
-        textureUV: FloatArray = EMPTY_FLOATS
+        textureUV: FloatArray = Empty.FloatArray
     ) {
         // currently all added quads must be added exactly with same param
         // otherwise result will be inconsistent

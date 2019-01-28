@@ -42,7 +42,7 @@ fun makeFloor(fW: Float, fH: Float, tileSpace: Float, addTexture: Boolean): Geom
         fW, 0f, floorZ, // BR
         fW, fH, floorZ, // TR
         0f, fH, floorZ,
-        if (addTexture) floatArrayOf(0f, 0f, 20f, 20f) else FloatArray(0)
+        if (addTexture) floatArrayOf(0f, 0f, 20f, 20f) else Empty.FloatArray
     )
 
     /*
