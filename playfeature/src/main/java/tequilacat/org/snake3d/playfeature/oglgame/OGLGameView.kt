@@ -78,7 +78,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         LIGHT_POSITION.copyInto(lightPosGlobal, 0, 0, 4)
     }
 
-    private val bodyObject = BodyShape()
+    private val bodyObject = BodyShape(4, Game.R_HEAD.toFloat())
 
     // compute all geometry once as number arrays, recreate OGL data on each surfaceCreated
 
@@ -175,7 +175,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     }
 
     private fun updateBody() {
-        bodyObject.update(game)
+        bodyObject.update(game.bodySegments)
     }
 
     // TODO remove this temp head object and replace with full body

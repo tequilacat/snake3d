@@ -17,29 +17,30 @@ class GeometryData(val vertexes: FloatArray, val vertexCount: Int,
 
     constructor(vertexes: FloatArray, hasNormals: Boolean, hasTexture: Boolean,
                 indexes: ShortArray = Empty.ShortArray) :
-            this(vertexes, vertexes.size * BYTES_PER_FLOAT / computeVertexStride(hasNormals, hasTexture),
+            this(vertexes, vertexes.size / computeVertexStrideInFloats(hasNormals, hasTexture),
                 indexes, indexes.size,
                 hasNormals, hasTexture)
 
     companion object {
-        fun computeVertexStride(hasNormals: Boolean, hasTexture: Boolean): Int {
+        fun computeVertexStrideInFloats(hasNormals: Boolean, hasTexture: Boolean): Int {
             var floatStride = 3
             if (hasNormals) floatStride += 3
             if (hasTexture) floatStride += 2
-            return floatStride * BYTES_PER_FLOAT
+            return floatStride
         }
     }
 
+    val vertexStrideInFloats = computeVertexStrideInFloats(hasNormals, hasTexture)
     /** vertex stride in bytes */
-    val vertexStride = computeVertexStride(hasNormals, hasTexture)
+    val vertexStride = vertexStrideInFloats * BYTES_PER_FLOAT
 
     val hasIndexes = indexCount > 0
-    // val vertexCount = vertexes.size * BYTES_PER_FLOAT / vertexStride
+
     init {
         if(indexCount > indexes.size) {
             throw IndexOutOfBoundsException("Index count $indexCount exceeds array size ${indexes.size}")
         }
-        if(vertexCount * vertexStride / BYTES_PER_FLOAT > vertexes.size) {
+        if(vertexCount * vertexStrideInFloats > vertexes.size) {
             throw IndexOutOfBoundsException(
                 "Vertex count $vertexCount (*floats per vertex) exceeds array size ${vertexes.size} ")
         }

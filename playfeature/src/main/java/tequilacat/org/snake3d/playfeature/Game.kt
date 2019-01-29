@@ -115,7 +115,7 @@ class Game {
         }
 
         bodySegmentsList.clear()
-        bodySegmentsList.addFirst(BodySegment(MARGIN / 2, MARGIN / 2, 0.0, R_HEAD * 4))
+        bodySegmentsList.addFirst(BodySegment(MARGIN / 2, MARGIN / 2, R_HEAD, 0.0, R_HEAD * 4))
 
         // just set initial timestamp
         //continueGame()
@@ -367,7 +367,8 @@ class Game {
         if (deltaAngle == 0.0) {
             bodySegmentsList.last.extend(step)
         } else {
-            bodySegmentsList.addLast(BodySegment(bodySegmentsList.last.dblEndX, bodySegmentsList.last.dblEndY,
+            bodySegmentsList.addLast(BodySegment(
+                bodySegmentsList.last.dblEndX, bodySegmentsList.last.dblEndY, bodySegmentsList.last.dblEndZ,
                 bodySegmentsList.last.angle + deltaAngle, step))
         }
 
@@ -413,14 +414,16 @@ interface IBodySegment {
     val betaCosinus: Float
 }
 
-class BodySegment(var dblStartX: Double, var dblStartY: Double, val angle: Double, var dblLength: Double) : IBodySegment {
+class BodySegment(var dblStartX: Double, var dblStartY: Double, var dblStartZ: Double, val angle: Double, var dblLength: Double) : IBodySegment {
 
+//    constructor(dblStartX: Double, dblStartY: Double, angle: Double, dblLength: Double) :
+//            this(dblStartX, dblStartY, 0.0, angle, dblLength)
     val angleSinus = sin(angle)
     val angleCosinus = cos(angle)
 
     var dblEndX: Double = 0.0
     var dblEndY: Double = 0.0
-
+    var dblEndZ: Double = dblStartZ // so far parallel to the ground
 
     override val startX: Float get() = dblStartX.toFloat()
     override val startY: Float get() = dblStartY.toFloat()
@@ -439,9 +442,6 @@ class BodySegment(var dblStartX: Double, var dblStartY: Double, val angle: Doubl
     override val beta = 0f
     override val betaSinus = sin(beta)
     override val betaCosinus= cos(beta)
-
-    private var dblStartZ: Double = 0.0
-    private var dblEndZ: Double = 0.0
 
 
 
