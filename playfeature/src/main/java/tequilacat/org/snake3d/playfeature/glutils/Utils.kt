@@ -22,7 +22,7 @@ class CoordUtils {
          * cross product between p2-p1 and p3-p1
          * @param vertexStride in FLOATS! NOT in bytes
          */
-        fun crossProduct(target: FloatArray, targetPos: Int, coords: FloatArray, pos1: Short, pos2: Short, pos3: Short,
+        fun crossProduct(target: FloatArray, targetPos: Int, coords: FloatArray, pos1: Int, pos2: Int, pos3: Int,
                          vertexStride: Int) {
             val p1 = pos1 * vertexStride
             val p2 = pos2 * vertexStride

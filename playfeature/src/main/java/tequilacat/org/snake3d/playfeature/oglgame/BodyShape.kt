@@ -10,7 +10,7 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
 
     // always even count
     val segmentFaceCount = requestedSegmentFaceCount - (requestedSegmentFaceCount and 1)
-    private val vertexFloatStride = 8
+    val vertexFloatStride = 8
 
     private val segmentAngleSinCos = Array(segmentFaceCount) {
         Pair(
@@ -53,12 +53,19 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
         allocateArrays(segments.size)
         rebuildIndexes(segments)
         rebuildVertexes(segments)
+        computeNormals()
+
         geometry = GeometryData(
             vertexes, vertexCount,
             indexes, indexCount,
             hasNormals = true,
             hasTexture = true
         )
+    }
+
+    private fun computeNormals() {
+        // compute normal foreach triangle
+        // for each vertex compute normal as normalized sum of
     }
 
     private fun rebuildIndexes(bodySegments: Collection<IBodySegment>) {

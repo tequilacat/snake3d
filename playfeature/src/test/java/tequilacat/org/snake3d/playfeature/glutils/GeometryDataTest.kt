@@ -12,33 +12,33 @@ class GeometryDataTest {
     @Test
     fun `vertexStride noNormal noUV`() {
         val sampleVertexCount = 3
-        assertEquals(3 * BYTES_PER_FLOAT, GeometryData(
+        assertEquals(3, GeometryData(
             FloatArray(sampleVertexCount * 3 /* 3 coords only*/),
-            hasNormals = false, hasTexture = false).vertexStride)
+            hasNormals = false, hasTexture = false).vertexFloatStride)
     }
 
     @Test
     fun `vertexStride hasNormal noUV`() {
         val sampleVertexCount = 3
-        assertEquals(6 * BYTES_PER_FLOAT, GeometryData(
+        assertEquals(6, GeometryData(
             FloatArray(sampleVertexCount * 6 /* 3 coords + 3 normalvec coords*/),
-            hasNormals = true, hasTexture = false).vertexStride)
+            hasNormals = true, hasTexture = false).vertexFloatStride)
     }
 
     @Test
     fun `vertexStride noNormal hasUV`() {
         val sampleVertexCount = 3
-        assertEquals(5 * BYTES_PER_FLOAT, GeometryData(
+        assertEquals(5, GeometryData(
             FloatArray(sampleVertexCount * 5 /* 3 coords + 2 UV*/),
-            hasNormals = false, hasTexture = true).vertexStride)
+            hasNormals = false, hasTexture = true).vertexFloatStride)
     }
 
     @Test
     fun `vertexStride hasNormal hasUV`() {
         val sampleVertexCount = 3
-        assertEquals(8 * BYTES_PER_FLOAT, GeometryData(
+        assertEquals(8, GeometryData(
             FloatArray(sampleVertexCount * 8 /* 3 coords + 3 normalvec coords + 2UV*/),
-            hasNormals = true, hasTexture = true).vertexStride)
+            hasNormals = true, hasTexture = true).vertexFloatStride)
     }
 
 

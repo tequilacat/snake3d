@@ -4,7 +4,7 @@ import org.junit.Test
 
 import org.junit.Assert.*
 import tequilacat.org.snake3d.playfeature.BodySegment
-import tequilacat.org.snake3d.playfeature.glutils.BYTES_PER_FLOAT
+import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
 import tequilacat.org.snake3d.playfeature.glutils.GeometryData
 import kotlin.math.PI
 import kotlin.math.cos
@@ -31,7 +31,7 @@ class BodyShapeTest {
     fun `build basicfeatures`() {
         assertTrue(singleSegmentGeom.hasNormals)
         assertTrue(singleSegmentGeom.hasTexture)
-        assertEquals(8 * BYTES_PER_FLOAT, singleSegmentGeom.vertexStride)
+        assertEquals(8, singleSegmentGeom.vertexFloatStride)
     }
 
     @Test
@@ -133,7 +133,7 @@ class BodyShapeTest {
         // assume always 8 floats per vertex - as body always has
         var expIndex = 0
         //
-        var bodyVertexIndex = firstVertex * bodyGeometry.vertexStrideInFloats + geomOffset
+        var bodyVertexIndex = firstVertex * bodyGeometry.vertexFloatStride + geomOffset
         var testedVertex = firstVertex
 
         while (expIndex < expectedVertexData.size) {
@@ -144,7 +144,7 @@ class BodyShapeTest {
             }
 
             expIndex += expectedDataStride
-            bodyVertexIndex += bodyGeometry.vertexStrideInFloats
+            bodyVertexIndex += bodyGeometry.vertexFloatStride
             testedVertex++
         }
     }
@@ -210,4 +210,32 @@ class BodyShapeTest {
         ), 3)
     }
 
+    /**
+     * test that each vertex in a triangle has same normal which is normalized -
+     * dont compar to the normal of its triangle!
+     * */
+    @Test
+
+    fun normals() {
+
+        val seg1 = BodySegment(0.0, 0.0, testRadius.toDouble(), 0.0, 10.0)
+        val segments = listOf(seg1, BodySegment(seg1.dblEndX, seg1.dblEndY, seg1.dblEndZ, PI / 4, 10.0))
+        val builder =  BodyShape(4, testRadius)
+        builder.update(segments)
+        val geom = builder.geometry
+
+        for (vi in 0 until geom.vertexCount step geom.vertexFloatStride) {
+            assertEquals("Bad normal at vi=$vi", 1f, CoordUtils.length(geom.vertexes, vi + 5), 0.0001f) // tolerance
+        }
+
+       /* val outNormal = FloatArray(3)
+
+        for (vi in 0 until builder.geometry.indexCount step 3) {
+            val pos1 = builder.geometry.indexes[vi]
+            val pos2 = builder.geometry.indexes[vi+1]
+            val pos3 = builder.geometry.indexes[vi+2]
+            CoordUtils.crossProduct(outNormal, 0, builder.geometry.vertexes,
+                pos1, pos2, pos3, builder.geometry.vertexFloatStride)
+        }*/
+    }
 }

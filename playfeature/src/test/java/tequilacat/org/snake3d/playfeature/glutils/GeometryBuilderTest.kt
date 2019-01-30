@@ -54,7 +54,7 @@ class GeometryBuilderTest{
     @Test
     fun `addQuad basic vertexStride`() {
         // check add quad w/o normals and
-        assertEquals(6 * BYTES_PER_FLOAT, testinstance_basicQuad().vertexStride)
+        assertEquals(6, testinstance_basicQuad().vertexFloatStride)
     }
 
     // test basic vertexes
@@ -121,7 +121,7 @@ class GeometryBuilderTest{
     @Test
     fun `addQuad textured vertexStride`() {
         // check add quad w/o normals and
-        assertEquals(8 * BYTES_PER_FLOAT, testinstance_texturedQuad().vertexStride)
+        assertEquals(8, testinstance_texturedQuad().vertexFloatStride)
     }
 
     // test basic vertexes

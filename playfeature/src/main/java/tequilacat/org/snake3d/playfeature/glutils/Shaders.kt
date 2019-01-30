@@ -76,11 +76,11 @@ class ShadedPainter(private val program: LightingProgram) : GeometryPainter {
 
         // Bind Attributes
         glVertexAttribPointer(program.aPosition.id, geometry.coordinatesPerVertex, GL_FLOAT,
-            false, geometry.vertexStride, geometry.coordBytesOffset)
+            false, geometry.vertexByteStride, geometry.coordBytesOffset)
         glEnableVertexAttribArray(program.aPosition.id)
 
         glVertexAttribPointer(program.aNormal.id, geometry.coordinatesPerVertex, GL_FLOAT,
-            false, geometry.vertexStride, geometry.normalBytesOffset)
+            false, geometry.vertexByteStride, geometry.normalBytesOffset)
         glEnableVertexAttribArray(program.aNormal.id)
 
         // Draw
@@ -169,15 +169,15 @@ class TexturePainter(private val program: TextureProgram) : GeometryPainter {
 
         // Bind Attributes
         glVertexAttribPointer(program.aPosition.id, geometry.coordinatesPerVertex, GL_FLOAT,
-            false, geometry.vertexStride, geometry.coordBytesOffset)
+            false, geometry.vertexByteStride, geometry.coordBytesOffset)
         glEnableVertexAttribArray(program.aPosition.id)
 
         glVertexAttribPointer(program.aNormal.id, geometry.coordinatesPerVertex, GL_FLOAT,
-            false, geometry.vertexStride, geometry.normalBytesOffset)
+            false, geometry.vertexByteStride, geometry.normalBytesOffset)
         glEnableVertexAttribArray(program.aNormal.id)
 
         glVertexAttribPointer(program.aTexCoordinate.id, geometry.floatsPerTexUV, GL_FLOAT,
-            false, geometry.vertexStride, geometry.texUvBytesOffset)
+            false, geometry.vertexByteStride, geometry.texUvBytesOffset)
         glEnableVertexAttribArray(program.aTexCoordinate.id)
 
         // Draw

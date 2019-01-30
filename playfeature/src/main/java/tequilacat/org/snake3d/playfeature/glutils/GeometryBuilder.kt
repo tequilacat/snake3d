@@ -4,32 +4,9 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-class GeometryBuilder {
+open class PrimitiveBuilder {
 
-    /**
-     * makes rotation, smooth or facetted vertically. if 2 points repeat it's facette between them.
-     */
-//    fun makeRotation(points2d: FloatArray, from: Int, pointCount: Int, sides: Int): GeometryData {
-//        // find sizes of vertexes by computing hard breaks (equal points).
-//        // if y = 0 use common vertex
-//
-//        val lastX = 0f
-//        val lastY = 0f
-//
-//        for(pIndex in from until from + pointCount * 2 step 2){
-//            val x = points2d[pIndex]
-//            val y = points2d[pIndex + 1]
-//
-//            if (pIndex > from && lastX == x && lastY == y) {
-//                // same point - assign different vertexes
-//            }
-//
-//            // use single vertex (facette)
-//            if(y == 0f) {
-//
-//            }
-//        }
-//    }
+    companion object Default: PrimitiveBuilder()
 
     fun makePrism(
         cx: Float, cy: Float, zBase: Float,
@@ -47,7 +24,38 @@ class GeometryBuilder {
             addTextures
         )
         val indexes = makePrismIndexes(sides, addCap)
-        return makeFacettedGeometryData(vertexes, indexes, addTextures)
+        return GeometryData(vertexes, false, addTextures, indexes).facetize()
+    }
+
+    private fun makePrismIndexes(sides: Int, addCap: Boolean) : ShortArray {
+        val array = ShortArray(sides * 6 + if (addCap) (sides - 2) * 3 else 0)
+        var pos = 0
+
+        for (sideVertex in 0 until sides) {
+            val p0: Short = (sideVertex * 2).toShort()
+            val p1: Short = (p0 + 1).toShort()
+            val p2: Short = if (sideVertex < sides - 1) (p0 + 2).toShort() else 0
+            val p3: Short = (p2 + 1).toShort()
+            array[pos++] = p0
+            array[pos++] = p2
+            array[pos++] = p1
+            array[pos++] = p2
+            array[pos++] = p3
+            array[pos++] = p1
+        }
+
+        if (addCap) {
+            val first: Short = 1
+            var next: Short = 3 // first + 1
+
+            for(i in 0 until sides - 2) {
+                array[pos++] = first
+                array[pos++] = next
+                next = (next + 2).toShort()
+                array[pos++] = next
+            }
+        }
+        return array
     }
 
     private fun makePrismVertexes(
@@ -55,7 +63,8 @@ class GeometryBuilder {
         zBase: Float, height: Float, addTextureUV: Boolean
     ): FloatArray {
         val deltaAlpha: Float = PI.toFloat() * 2 / sides.toFloat()
-        val coords = FloatArray(sides * 2 * computeVertexFloatStride(addTextureUV))
+        val vertexStride = if (addTextureUV) 5 else 3
+        val coords = FloatArray(sides * 2 * vertexStride)
         var pos = 0
         var alpha = 0f
         var t = 0f
@@ -90,98 +99,44 @@ class GeometryBuilder {
         return coords
     }
 
+}
+
+class GeometryBuilder {
+
+    /**
+     * makes rotation, smooth or facetted vertically. if 2 points repeat it's facette between them.
+     */
+//    fun makeRotation(points2d: FloatArray, from: Int, pointCount: Int, sides: Int): GeometryData {
+//        // find sizes of vertexes by computing hard breaks (equal points).
+//        // if y = 0 use common vertex
+//
+//        val lastX = 0f
+//        val lastY = 0f
+//
+//        for(pIndex in from until from + pointCount * 2 step 2){
+//            val x = points2d[pIndex]
+//            val y = points2d[pIndex + 1]
+//
+//            if (pIndex > from && lastX == x && lastY == y) {
+//                // same point - assign different vertexes
+//            }
+//
+//            // use single vertex (facette)
+//            if(y == 0f) {
+//
+//            }
+//        }
+//    }
+
+
     companion object {
         private val RECT_VERTEX_ORDER_LIST = shortArrayOf(0, 1, 2, 0, 2, 3)
-
-        private fun computeVertexFloatStride(textures: Boolean) = if(textures) 5 else 3
-
-        /** used by algos as output to build normal. NOT threadsafe! */
-        private val normalTmpBuffer = FloatArray(3)
 
         /**
          * creates prism indexes for specified sides count,
          * assume prism along 0Z, vertexes follow around center counter-clockwise (increasing alpha)
          */
-        private fun makePrismIndexes(sides: Int, addCap: Boolean) : ShortArray {
-            val array = ShortArray(sides * 6 + if (addCap) (sides - 2) * 3 else 0)
-            var pos = 0
 
-            for (sideVertex in 0 until sides) {
-                val p0: Short = (sideVertex * 2).toShort()
-                val p1: Short = (p0 + 1).toShort()
-                val p2: Short = if (sideVertex < sides - 1) (p0 + 2).toShort() else 0
-                val p3: Short = (p2 + 1).toShort()
-                array[pos++] = p0
-                array[pos++] = p2
-                array[pos++] = p1
-                array[pos++] = p2
-                array[pos++] = p3
-                array[pos++] = p1
-            }
-
-            if (addCap) {
-                val first: Short = 1
-                var next: Short = 3 // first + 1
-
-                for(i in 0 until sides - 2) {
-                    array[pos++] = first
-                    array[pos++] = next
-                    next = (next + 2).toShort()
-                    array[pos++] = next
-                }
-            }
-            return array
-        }
-
-        /**
-         * generates separate vertices and a normal for each vertex, without indexing
-         */
-        fun makeFacettedGeometryData(
-            vertexes: FloatArray,
-            indexes: ShortArray,
-            textures: Boolean
-        ): GeometryData {
-
-            val vertexFloatStride = computeVertexFloatStride(textures)
-
-            // make target vertexes
-            // no reuse of vertexes - facets will be visible
-            val resVertexCount = indexes.size // for each index there will be a vertex
-            val outVertexes = FloatArray(resVertexCount * (3 + vertexFloatStride)) // stride + 3 per normal
-            // val normals = FloatArray(resVertexCount * 3)
-            // val singleNormalCoords = FloatArray(3) // temp out array
-            var coordPtr = 0 //
-
-            for (i in 0 until indexes.size step 3) {
-                // for all 3 face vertices the normal is same so compute once
-                CoordUtils.crossProduct(
-                    normalTmpBuffer, 0,
-                    vertexes, indexes[i], indexes[i + 1], indexes[i + 2], vertexFloatStride
-                )
-                CoordUtils.normalize(
-                    normalTmpBuffer,
-                    0,
-                    normalTmpBuffer,
-                    0
-                )
-
-                for(vI in 0 .. 2) {
-                    val cPos = indexes[i + vI] * vertexFloatStride // position of coords
-
-                    for(vPos in 0 until vertexFloatStride) {
-                        outVertexes[coordPtr++] = vertexes[cPos + vPos]
-                        //outVertexes[coordPtr++] = vertexes[cPos + 1]
-                        //outVertexes[coordPtr++] = vertexes[cPos + 2]
-                    }
-
-                    outVertexes[coordPtr++] = normalTmpBuffer[0]
-                    outVertexes[coordPtr++] = normalTmpBuffer[1]
-                    outVertexes[coordPtr++] = normalTmpBuffer[2]
-                }
-            }
-
-            return GeometryData(outVertexes, true, textures)
-        }
     }
 
     private val storedVertexes = mutableListOf<Float>()
@@ -202,7 +157,7 @@ class GeometryBuilder {
         freeIndex++
     }
 
-    var textureUvAdded = false
+    private var textureUvAdded = false
 
     fun addQuad(
         x0: Float, y0: Float, z0: Float,
@@ -215,7 +170,7 @@ class GeometryBuilder {
         // otherwise result will be inconsistent
         textureUvAdded = textureUV.isNotEmpty()
 
-        val hasUV = textureUV.size > 0
+        val hasUV = textureUV.isNotEmpty()
         // check stride
         val uvOffset = 3
         val normalOffset = if (hasUV) uvOffset + 2 else uvOffset
@@ -250,18 +205,23 @@ class GeometryBuilder {
 
         for (i in 0 until 4) {
             if(hasUV) {
-                if (i == 0) {
-                    newArray[uvPos] = textureUV[0]
-                    newArray[uvPos+1] = textureUV[1]
-                } else if (i == 1) {
-                    newArray[uvPos] = textureUV[2]
-                    newArray[uvPos+1] = textureUV[1]
-                } else if (i == 2) {
-                    newArray[uvPos] = textureUV[2]
-                    newArray[uvPos + 1] = textureUV[3]
-                } else { // i == 3
-                    newArray[uvPos] = textureUV[0]
-                    newArray[uvPos + 1] = textureUV[3]
+                when (i) {
+                    0 -> {
+                        newArray[uvPos] = textureUV[0]
+                        newArray[uvPos+1] = textureUV[1]
+                    }
+                    1 -> {
+                        newArray[uvPos] = textureUV[2]
+                        newArray[uvPos+1] = textureUV[1]
+                    }
+                    2 -> {
+                        newArray[uvPos] = textureUV[2]
+                        newArray[uvPos + 1] = textureUV[3]
+                    }
+                    else -> { // i == 3
+                        newArray[uvPos] = textureUV[0]
+                        newArray[uvPos + 1] = textureUV[3]
+                    }
                 }
             }
 
@@ -288,13 +248,9 @@ class GeometryBuilder {
 
         add(
             newArray,
-            //floatArrayOf(x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3),
             RECT_VERTEX_ORDER_LIST
         )
     }
-
-//    fun build() = makeFacettedGeometryData(storedVertexes.toFloatArray(),
-//        storedIndexes.toShortArray(), addTextures)
 
     fun build() = GeometryData(
         storedVertexes.toFloatArray(), true, textureUvAdded,

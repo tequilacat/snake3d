@@ -1,10 +1,8 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.opengl.GLES20.*
 import android.opengl.GLSurfaceView
-import android.opengl.GLUtils
 import android.opengl.Matrix
 import android.os.SystemClock
 import android.util.Log
@@ -82,14 +80,14 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
     // compute all geometry once as number arrays, recreate OGL data on each surfaceCreated
 
-    private val pickableGeometryData: GeometryData = GeometryBuilder().makePrism(
+    private val pickableGeometryData: GeometryData = PrimitiveBuilder.makePrism(
         0f, 0f, 0f,
         bodyUnit() * 2f, Game.GameObject.Type.PICKABLE.radius.toFloat(), 12, true, true)
 
-    private val obstacleGeometryData: GeometryData = GeometryBuilder().makePrism(0f, 0f, 0f,
+    private val obstacleGeometryData: GeometryData = PrimitiveBuilder.makePrism(0f, 0f, 0f,
         bodyUnit() * 1.3f, Game.GameObject.Type.OBSTACLE.radius.toFloat(), 12, true, true)
 
-    private var headGeometryData: GeometryData = GeometryBuilder().makePrism(0f, 0f, 0f,
+    private var headGeometryData: GeometryData = PrimitiveBuilder.makePrism(0f, 0f, 0f,
         bodyUnit(), Game.R_HEAD.toFloat(), 6, true, true)
 
     private lateinit var obstacleGeometry: Geometry
