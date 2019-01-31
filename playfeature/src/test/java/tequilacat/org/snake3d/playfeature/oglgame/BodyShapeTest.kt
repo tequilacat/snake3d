@@ -4,6 +4,9 @@ import org.junit.Test
 
 import org.junit.Assert.*
 import tequilacat.org.snake3d.playfeature.BodySegment
+import tequilacat.org.snake3d.playfeature.IBodySegment
+import tequilacat.org.snake3d.playfeature.append
+import tequilacat.org.snake3d.playfeature.assertArraysEqual
 import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
 import tequilacat.org.snake3d.playfeature.glutils.GeometryData
 import kotlin.math.PI
@@ -215,7 +218,6 @@ class BodyShapeTest {
      * dont compar to the normal of its triangle!
      * */
     @Test
-
     fun normals() {
 
         val seg1 = BodySegment(0.0, 0.0, testRadius.toDouble(), 0.0, 10.0)
@@ -238,4 +240,82 @@ class BodyShapeTest {
                 pos1, pos2, pos3, builder.geometry.vertexFloatStride)
         }*/
     }
+
+    /**
+     * due to bug, end stub ring differs from intermediate ring
+     */
+    @Test
+    fun `intermediate ring equals last ring`() {
+        val getCoords = { g: GeometryData, indexes: Iterable<Int> ->
+            indexes.map { idx ->
+                val pos = idx * g.vertexFloatStride
+                listOf(g.vertexes[pos], g.vertexes[pos + 1], g.vertexes[pos + 2])
+            }.flatten()
+        }
+
+        val geom1 = BodyShape(4, testRadius).run {
+            update(mutableListOf<IBodySegment>(
+                BodySegment(
+                    10.0, 4.0, 1.0,
+                    PI/4, 2.0))
+                , false)
+            geometry
+        }
+        val v1 = getCoords(geom1, (0..12))
+
+        val geom2 = BodyShape(4, testRadius).run {
+            update(mutableListOf<IBodySegment>(
+                BodySegment(
+                    10.0, 4.0, 1.0,
+                    PI/4, 2.0))
+                .append(PI/4, 2.0, false), false)
+            geometry
+        }
+
+        val v2 = getCoords(geom2, (0..12))
+        assertArraysEqual(v1.toFloatArray(), v2.toFloatArray())
+    }
+
+    /*@Test
+    fun compareSegmentBreak() {
+        // must have same coords at end of 1st segment
+        val segments1 = mutableListOf<IBodySegment>(
+            BodySegment(
+                10.0, 4.0, 1.0,
+                PI/4, 2.0))
+        val segments2 = mutableListOf<IBodySegment>(
+            BodySegment(
+                10.0, 4.0, 1.0,
+                PI/4, 2.0))
+            .append(PI/4, 2.0, false)
+
+        val geom1 = BodyShape(4, testRadius).run {
+            update(segments1, false)
+            geometry
+        }
+
+        val geom2 = BodyShape(4, testRadius).run {
+            update(segments2, false)
+            geometry
+        }
+
+        assertEquals(18, geom1.vertexCount)
+        assertEquals(22, geom2.vertexCount)
+
+        val printV = {title:String, vertexIndex: Int, geom: GeometryData ->
+            val pos = vertexIndex * geom.vertexFloatStride
+            println("$title[$vertexIndex]: ${geom.vertexes[pos]}, ${geom.vertexes[pos + 1]}, ${geom.vertexes[pos + 2]}")
+            floatArrayOf(geom.vertexes[pos], geom.vertexes[pos + 1],geom.vertexes[pos + 2])
+        }
+
+        //println("Body 1:")
+        (0..12).forEach { i ->
+            val v1 = printV("G1", i, geom1)
+            val v2 = printV("G2", i, geom2)
+            assertTrue("  Index $i coord differs: ${v1.contentToString()}, ${v2.contentToString()}",
+                v1 contentEquals v2)
+        }
+//        println("Body 2:")
+//        (9..12).forEach { i -> printV(i, geom2) }
+    }*/
 }

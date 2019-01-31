@@ -12,7 +12,7 @@ import kotlin.random.Random
 /**
  * stores all logic and data of game field
  */
-class Game {
+class Game(private val addObstacles: Boolean = true) {
     // state - as enum
     var dbgStatus: String = "none"
 
@@ -135,28 +135,31 @@ class Game {
 //            GameObject(GameObject.Type.OBSTACLE, 40.0, 20.0)
 //        ))
 
-        for (pair in listOf(
-            Pair(GameObject.Type.PICKABLE, currentLevel.pickableCount),
-            Pair(GameObject.Type.OBSTACLE, currentLevel.obstacleCount))) {
+        if(addObstacles) {
+            for (pair in listOf(
+                Pair(GameObject.Type.PICKABLE, currentLevel.pickableCount),
+                Pair(GameObject.Type.OBSTACLE, currentLevel.obstacleCount)
+            )) {
 
-            for (i in 0 until pair.second) {
-                var tries = 20 // if cannot find a free cell for 20 tries we fail miserably
-                var objX: Double
-                var objY: Double
-                var objPlaced: Boolean
+                for (i in 0 until pair.second) {
+                    var tries = 20 // if cannot find a free cell for 20 tries we fail miserably
+                    var objX: Double
+                    var objY: Double
+                    var objPlaced: Boolean
 
-                do {
-                    objX = Random.nextDouble(MARGIN, fieldWidth - MARGIN)
-                    objY = Random.nextDouble(MARGIN, fieldHeight - MARGIN)
-                    tries--
-                    objPlaced = !fieldObjectList.any() { it.isColliding(objX, objY, pair.first.radius) }
-                } while (!objPlaced && tries > 0)
+                    do {
+                        objX = Random.nextDouble(MARGIN, fieldWidth - MARGIN)
+                        objY = Random.nextDouble(MARGIN, fieldHeight - MARGIN)
+                        tries--
+                        objPlaced = !fieldObjectList.any() { it.isColliding(objX, objY, pair.first.radius) }
+                    } while (!objPlaced && tries > 0)
 
-                if(!objPlaced) {
-                    throw IllegalArgumentException("Cannot randomly place that much game objects")
+                    if (!objPlaced) {
+                        throw IllegalArgumentException("Cannot randomly place that much game objects")
+                    }
+
+                    fieldObjectList.add(GameObject(pair.first, objX, objY))
                 }
-
-                fieldObjectList.add(GameObject(pair.first, objX, objY))
             }
         }
     }
@@ -412,6 +415,25 @@ interface IBodySegment {
     val beta: Float
     val betaSinus: Float
     val betaCosinus: Float
+}
+
+/**
+ * appends a segment to the list
+ */
+fun MutableList<IBodySegment>.append(
+    angle: Double,
+    length: Double,
+    angleRelative: Boolean = true
+): MutableList<IBodySegment> {
+
+    val last = this.last()
+    this.add(
+        BodySegment(
+            last.endX.toDouble(), last.endY.toDouble(), last.endZ.toDouble(),
+            angle + if(angleRelative) last.alpha else 0f, length
+        )
+    )
+    return this
 }
 
 class BodySegment(var dblStartX: Double, var dblStartY: Double, var dblStartZ: Double, val angle: Double, var dblLength: Double) : IBodySegment {

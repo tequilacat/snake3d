@@ -6,9 +6,7 @@ import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import android.os.SystemClock
 import android.util.Log
-import tequilacat.org.snake3d.playfeature.Game
-import tequilacat.org.snake3d.playfeature.IBodySegment
-import tequilacat.org.snake3d.playfeature.R
+import tequilacat.org.snake3d.playfeature.*
 import tequilacat.org.snake3d.playfeature.glutils.*
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
@@ -64,6 +62,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     // how far behind the head the eye is
     private val eyeRearDistance = bodyUnit() * 5
 
+    private val debugScene: DebugScene? = null
 
 
     private var controlState: Game.GameControlImpulse = Game.GameControlImpulse.NONE
@@ -81,7 +80,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     class BodyShapeObject(painter: GeometryPainter) :
         AbstractDrawableGameObject(painter, ObjectContext(ObjColors.BODY.rgb, -1)) {
 
-        private val bodyShape = BodyShape(4, Game.R_HEAD.toFloat())
+        private val bodyShape = BodyShape(6, Game.R_HEAD.toFloat())
 
         override lateinit var geometry: Geometry
 
@@ -162,12 +161,19 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         gameObjects.clear()
 
         // create dynamically depending on game size (current level), not static data
-        if(::floorGeometry.isInitialized) {
+        if (::floorGeometry.isInitialized) {
             floorGeometry.release()
         }
 
         floorGeometry = Geometry(makeFloor(game.fieldWidth, game.fieldHeight, bodyUnit() * 3, true))
-        gameObjects.add(DrawableGameObject(floorGeometry, texturePainter, ObjColors.FLOOR.rgb, textureId = floorTileTextureId))
+        gameObjects.add(
+            DrawableGameObject(
+                floorGeometry,
+                texturePainter,
+                ObjColors.FLOOR.rgb,
+                textureId = floorTileTextureId
+            )
+        )
 
 
         // add game objects
@@ -178,7 +184,8 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
                 if (it.type == Game.GameObject.Type.OBSTACLE) ObjColors.OBSTACLE.rgb else ObjColors.PICKABLE.rgb,
                 gameObject = it,
                 textureId = if (it.type == Game.GameObject.Type.OBSTACLE) obstacleTextureId else pickableTextureId
-            ).apply { position(it.centerX.toFloat(), it.centerY.toFloat(), 0f, 0f) }})
+            ).apply { position(it.centerX.toFloat(), it.centerY.toFloat(), 0f, 0f) }
+        })
 
         headObj = DrawableGameObject(headGeometry, phongPainter, ObjColors.BODY.rgb)
         // gameObjects.add(headObj!!) // don't show the head
@@ -189,7 +196,11 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     }
 
     private fun updateBody() {
-        bodyShapeObject.update(game.bodySegments)
+        if (debugScene != null) {
+            bodyShapeObject.update(debugScene.bodySegments)
+        } else {
+            bodyShapeObject.update(game.bodySegments)
+        }
     }
 
     // TODO remove this temp head object and replace with full body
@@ -227,21 +238,33 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     }
 
     private fun adjustViewAngle() {
-        val eyeH = bodyUnit() * 3
-        val head = game.head
+        if(debugScene != null) {
+            Matrix.setLookAtM(
+                drawContext.viewMatrix, 0,
+                debugScene.cameraPosition[0], debugScene.cameraPosition[1], debugScene.cameraPosition[2],
+                debugScene.cameraPosition[3], debugScene.cameraPosition[4], debugScene.cameraPosition[5],
+                0f, 0.0f, 1.0f
+            )
+        } else {
 
-        val cx: Float = head.endX - head.alphaCosinus * eyeRearDistance
-        val cy: Float = head.endY - head.alphaSinus * eyeRearDistance
+            val eyeH = bodyUnit() * 3
+            val head = game.head
 
-        Matrix.setLookAtM(drawContext.viewMatrix, 0,
-            cx, cy, eyeH,
-            cx + head.alphaCosinus, cy + head.alphaSinus, eyeH,
-            0f, 0.0f, 1.0f)
+            val cx: Float = head.endX - head.alphaCosinus * eyeRearDistance
+            val cy: Float = head.endY - head.alphaSinus * eyeRearDistance
+
+            Matrix.setLookAtM(
+                drawContext.viewMatrix, 0,
+                cx, cy, eyeH,
+                cx + head.alphaCosinus, cy + head.alphaSinus, eyeH,
+                0f, 0.0f, 1.0f
+            )
+
+            headObj!!.position(head.endX, head.endY, 0f, head.alpha)
+        }
 
         // compute light in eye pos
         Matrix.multiplyMV(drawContext.lightPosInEyeSpace, 0, drawContext.viewMatrix, 0, drawContext.lightPosGlobal, 0)
-
-        headObj!!.position(head.endX, head.endY, 0f, head.alpha)
     }
 
     /**
@@ -258,7 +281,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
     private fun drawGameFrame() {
         // tick
-        val tickResult = game.tick(controlState)
+        val tickResult = if(debugScene == null) game.tick(controlState) else Game.TickResult.NONE
 //        Log.d("render", "Tick result: $tickResult")
 
         when(tickResult) {

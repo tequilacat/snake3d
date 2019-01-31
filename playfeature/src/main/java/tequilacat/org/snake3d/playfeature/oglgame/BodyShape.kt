@@ -52,7 +52,7 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
     /**
      *
      */
-    fun update(segments: Collection<IBodySegment>) {
+    fun update(segments: Collection<IBodySegment>, facetize: Boolean = true) {
         allocateArrays(segments.size)
         rebuildIndexes(segments)
         rebuildVertexes(segments)
@@ -63,7 +63,9 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
             indexes, indexCount,
             hasNormals = true,
             hasTexture = true
-        ).facetize() // TODO remove facetizing as soon as computeNormals is ready
+        )
+
+        if (facetize) geometry = geometry.facetize() // TODO remove facetizing as soon as computeNormals is ready
     }
 
     private fun computeNormals() {
@@ -158,7 +160,7 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
             addRing(
                 index, segment.startX, segment.startY, segment.startZ, bodyRadius,
                 if (prevSegment != null)
-                    (segment.alpha - prevSegment.alpha) / 2
+                    (segment.alpha + prevSegment.alpha) / 2
                 else segment.alpha
             )
 
