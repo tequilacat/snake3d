@@ -34,7 +34,7 @@ class ShadedPainter(private val program: LightingProgram) : GeometryPainter {
     private val mMVMatrix = FloatArray(16)
     private val mMVPMatrix = FloatArray(16)
 
-    override fun paint(geometry: Geometry, objectContext: ObjectContext, modelMatrix: FloatArray, sceneContext: SceneContext) {
+    override fun paint(geometryBuffer: GeometryBuffer, objectContext: ObjectContext, modelMatrix: FloatArray, sceneContext: SceneContext) {
         // current impl does not paint indexes!
 
         glUseProgram(program.id)
@@ -72,24 +72,24 @@ class ShadedPainter(private val program: LightingProgram) : GeometryPainter {
         // start position for coords: 0
         // start position for normals:
 
-        glBindBuffer(GL_ARRAY_BUFFER, geometry.vertexBufferId)
+        glBindBuffer(GL_ARRAY_BUFFER, geometryBuffer.vertexBufferId)
 
         // Bind Attributes
-        glVertexAttribPointer(program.aPosition.id, geometry.coordinatesPerVertex, GL_FLOAT,
-            false, geometry.vertexByteStride, geometry.coordBytesOffset)
+        glVertexAttribPointer(program.aPosition.id, geometryBuffer.coordinatesPerVertex, GL_FLOAT,
+            false, geometryBuffer.vertexByteStride, geometryBuffer.coordBytesOffset)
         glEnableVertexAttribArray(program.aPosition.id)
 
-        glVertexAttribPointer(program.aNormal.id, geometry.coordinatesPerVertex, GL_FLOAT,
-            false, geometry.vertexByteStride, geometry.normalBytesOffset)
+        glVertexAttribPointer(program.aNormal.id, geometryBuffer.coordinatesPerVertex, GL_FLOAT,
+            false, geometryBuffer.vertexByteStride, geometryBuffer.normalBytesOffset)
         glEnableVertexAttribArray(program.aNormal.id)
 
         // Draw
-        if (geometry.hasIndexes) {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.indexBufferId)
-            glDrawElements(GL_TRIANGLES, geometry.indexCount, GL_UNSIGNED_SHORT, 0)
+        if (geometryBuffer.hasIndexes) {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometryBuffer.indexBufferId)
+            glDrawElements(GL_TRIANGLES, geometryBuffer.indexCount, GL_UNSIGNED_SHORT, 0)
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
         } else {
-            glDrawArrays(GL_TRIANGLES, 0, geometry.vertexCount)
+            glDrawArrays(GL_TRIANGLES, 0, geometryBuffer.vertexCount)
         }
 
         glDisableVertexAttribArray(program.aPosition.id)
@@ -122,7 +122,7 @@ class TexturePainter(private val program: TextureProgram) : GeometryPainter {
     private val mMVMatrix = FloatArray(16)
     private val mMVPMatrix = FloatArray(16)
 
-    override fun paint(geometry: Geometry, objectContext: ObjectContext, modelMatrix: FloatArray, sceneContext: SceneContext) {
+    override fun paint(geometryBuffer: GeometryBuffer, objectContext: ObjectContext, modelMatrix: FloatArray, sceneContext: SceneContext) {
 
         glUseProgram(program.id)
 
@@ -165,28 +165,28 @@ class TexturePainter(private val program: TextureProgram) : GeometryPainter {
         // drawGameFrame VBOs
 
 
-        glBindBuffer(GL_ARRAY_BUFFER, geometry.vertexBufferId)
+        glBindBuffer(GL_ARRAY_BUFFER, geometryBuffer.vertexBufferId)
 
         // Bind Attributes
-        glVertexAttribPointer(program.aPosition.id, geometry.coordinatesPerVertex, GL_FLOAT,
-            false, geometry.vertexByteStride, geometry.coordBytesOffset)
+        glVertexAttribPointer(program.aPosition.id, geometryBuffer.coordinatesPerVertex, GL_FLOAT,
+            false, geometryBuffer.vertexByteStride, geometryBuffer.coordBytesOffset)
         glEnableVertexAttribArray(program.aPosition.id)
 
-        glVertexAttribPointer(program.aNormal.id, geometry.coordinatesPerVertex, GL_FLOAT,
-            false, geometry.vertexByteStride, geometry.normalBytesOffset)
+        glVertexAttribPointer(program.aNormal.id, geometryBuffer.coordinatesPerVertex, GL_FLOAT,
+            false, geometryBuffer.vertexByteStride, geometryBuffer.normalBytesOffset)
         glEnableVertexAttribArray(program.aNormal.id)
 
-        glVertexAttribPointer(program.aTexCoordinate.id, geometry.floatsPerTexUV, GL_FLOAT,
-            false, geometry.vertexByteStride, geometry.texUvBytesOffset)
+        glVertexAttribPointer(program.aTexCoordinate.id, geometryBuffer.floatsPerTexUV, GL_FLOAT,
+            false, geometryBuffer.vertexByteStride, geometryBuffer.texUvBytesOffset)
         glEnableVertexAttribArray(program.aTexCoordinate.id)
 
         // Draw
-        if (geometry.hasIndexes) {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometry.indexBufferId)
-            glDrawElements(GL_TRIANGLES, geometry.indexCount, GL_UNSIGNED_SHORT, 0)
+        if (geometryBuffer.hasIndexes) {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, geometryBuffer.indexBufferId)
+            glDrawElements(GL_TRIANGLES, geometryBuffer.indexCount, GL_UNSIGNED_SHORT, 0)
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
         } else {
-            glDrawArrays(GL_TRIANGLES, 0, geometry.vertexCount)
+            glDrawArrays(GL_TRIANGLES, 0, geometryBuffer.vertexCount)
         }
 
         glDisableVertexAttribArray(program.aTexCoordinate.id)
@@ -220,8 +220,8 @@ class SkyboxProgramPainter(context: Context) :
         R.raw.sb1_bottom, R.raw.sb1_front, R.raw.sb1_back
     )
 
-    private val geometry = Geometry(
-        GeometryData(
+    private val geometry = GeometryBuffer(
+        Geometry(
             floatArrayOf(
                 -1.0f, -1.0f, 1.0f,
                 1.0f, -1.0f, 1.0f,

@@ -82,30 +82,31 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
         private val bodyShape = BodyShape(6, Game.R_HEAD.toFloat())
 
-        override lateinit var geometry: Geometry
+        override lateinit var geometryBuffer: GeometryBuffer
 
         fun update(segments: Collection<IBodySegment>) {
             bodyShape.update(segments)
-            geometry = Geometry(bodyShape.geometry)
+            // TODO remove facetizing as soon as computeNormals is ready
+            geometryBuffer = GeometryBuffer(bodyShape.geometry.facetize())
         }
     }
 
     // compute all geometry once as number arrays, recreate OGL data on each surfaceCreated
 
-    private val pickableGeometryData: GeometryData = PrimitiveBuilder.makePrism(
+    private val pickableGeometry: Geometry = PrimitiveBuilder.makePrism(
         0f, 0f, 0f,
         bodyUnit() * 2f, Game.GameObject.Type.PICKABLE.radius.toFloat(), 12, true, true)
 
-    private val obstacleGeometryData: GeometryData = PrimitiveBuilder.makePrism(0f, 0f, 0f,
+    private val obstacleGeometry: Geometry = PrimitiveBuilder.makePrism(0f, 0f, 0f,
         bodyUnit() * 1.3f, Game.GameObject.Type.OBSTACLE.radius.toFloat(), 12, true, true)
 
-    private var headGeometryData: GeometryData = PrimitiveBuilder.makePrism(0f, 0f, 0f,
+    private var headGeometry: Geometry = PrimitiveBuilder.makePrism(0f, 0f, 0f,
         bodyUnit(), Game.R_HEAD.toFloat(), 6, true, true)
 
-    private lateinit var obstacleGeometry: Geometry
-    private lateinit var pickableGeometry: Geometry
-    private lateinit var headGeometry: Geometry
-    private lateinit var floorGeometry: Geometry
+    private lateinit var obstacleGeometryBuffer: GeometryBuffer
+    private lateinit var pickableGeometryBuffer: GeometryBuffer
+    private lateinit var headGeometryBuffer: GeometryBuffer
+    private lateinit var floorGeometryBuffer: GeometryBuffer
 
     private lateinit var phongPainter: GeometryPainter
     private lateinit var guraudPainter: GeometryPainter
@@ -134,9 +135,9 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
         // build VBO buffers for head and obstacles- in onSurfaceCreated old buffers should be freed
         // TODO check in docs whether VBOs are really freed on restart
-        obstacleGeometry = Geometry(obstacleGeometryData)
-        headGeometry = Geometry(headGeometryData)
-        pickableGeometry = Geometry(pickableGeometryData)
+        obstacleGeometryBuffer = GeometryBuffer(obstacleGeometry)
+        headGeometryBuffer = GeometryBuffer(headGeometry)
+        pickableGeometryBuffer = GeometryBuffer(pickableGeometry)
 
         glClearColor(ObjColors.SKY.rgb[0], ObjColors.SKY.rgb[1], ObjColors.SKY.rgb[2], 1f)
         glEnable(GL_DEPTH_TEST)
@@ -161,14 +162,14 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         gameObjects.clear()
 
         // create dynamically depending on game size (current level), not static data
-        if (::floorGeometry.isInitialized) {
-            floorGeometry.release()
+        if (::floorGeometryBuffer.isInitialized) {
+            floorGeometryBuffer.release()
         }
 
-        floorGeometry = Geometry(makeFloor(game.fieldWidth, game.fieldHeight, bodyUnit() * 3, true))
+        floorGeometryBuffer = GeometryBuffer(makeFloor(game.fieldWidth, game.fieldHeight, bodyUnit() * 3, true))
         gameObjects.add(
             DrawableGameObject(
-                floorGeometry,
+                floorGeometryBuffer,
                 texturePainter,
                 ObjColors.FLOOR.rgb,
                 textureId = floorTileTextureId
@@ -179,7 +180,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         // add game objects
         gameObjects.addAll(game.fieldObjects.map {
             DrawableGameObject(
-                if (it.type == Game.GameObject.Type.OBSTACLE) obstacleGeometry else pickableGeometry,
+                if (it.type == Game.GameObject.Type.OBSTACLE) obstacleGeometryBuffer else pickableGeometryBuffer,
                 texturePainter,
                 if (it.type == Game.GameObject.Type.OBSTACLE) ObjColors.OBSTACLE.rgb else ObjColors.PICKABLE.rgb,
                 gameObject = it,
@@ -187,7 +188,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             ).apply { position(it.centerX.toFloat(), it.centerY.toFloat(), 0f, 0f) }
         })
 
-        headObj = DrawableGameObject(headGeometry, phongPainter, ObjColors.BODY.rgb)
+        headObj = DrawableGameObject(headGeometryBuffer, phongPainter, ObjColors.BODY.rgb)
         // gameObjects.add(headObj!!) // don't show the head
 
         bodyShapeObject = BodyShapeObject(guraudPainter)

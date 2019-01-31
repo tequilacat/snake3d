@@ -100,7 +100,7 @@ interface Drawable {
 }
 
 interface GeometryPainter {
-    fun paint(geometry: Geometry, objectContext: ObjectContext, modelMatrix: FloatArray, sceneContext: SceneContext)
+    fun paint(geometryBuffer: GeometryBuffer, objectContext: ObjectContext, modelMatrix: FloatArray, sceneContext: SceneContext)
 }
 
 class ObjectContext(val primaryColor: FloatArray, val textureId: Int)

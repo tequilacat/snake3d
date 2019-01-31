@@ -2,7 +2,7 @@ package tequilacat.org.snake3d.playfeature.oglgame
 
 import android.util.Log
 import tequilacat.org.snake3d.playfeature.IBodySegment
-import tequilacat.org.snake3d.playfeature.glutils.GeometryData
+import tequilacat.org.snake3d.playfeature.glutils.Geometry
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -20,7 +20,7 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
     }
 
     // last generated geometry
-    lateinit var geometry: GeometryData private set
+    lateinit var geometry: Geometry private set
 
     // some safe guesses
     private var vertexes: FloatArray = FloatArray(1000)
@@ -35,7 +35,7 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
 
         if(vertexes.size < vertexCoordCount) {
             vertexes = FloatArray(vertexCoordCount + 1000)
-            Log.d("body", "increase vertexes to ${vertexes.size}")
+//            Log.d("body", "increase vertexes to ${vertexes.size}")
         }
 
         // allocate indexes
@@ -45,27 +45,25 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
         // alloc in advance
         if(indexes.size < indexCount) {
             indexes = ShortArray(indexCount + 1000) //
-            Log.d("body", "increase indexes to ${indexes.size}")
+//            Log.d("body", "increase indexes to ${indexes.size}")
         }
     }
 
     /**
      *
      */
-    fun update(segments: Collection<IBodySegment>, facetize: Boolean = true) {
+    fun update(segments: Collection<IBodySegment>) {
         allocateArrays(segments.size)
         rebuildIndexes(segments)
         rebuildVertexes(segments)
         computeNormals()
 
-        geometry = GeometryData(
+        geometry = Geometry(
             vertexes, vertexCount,
             indexes, indexCount,
             hasNormals = true,
             hasTexture = true
         )
-
-        if (facetize) geometry = geometry.facetize() // TODO remove facetizing as soon as computeNormals is ready
     }
 
     private fun computeNormals() {

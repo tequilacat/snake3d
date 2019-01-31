@@ -4,11 +4,11 @@ package tequilacat.org.snake3d.playfeature.glutils
 import org.junit.Assert.*
 import org.junit.Test
 
-class GeometryDataFacetizedTest {
+class GeometryFacetizedTest {
     @Test(expected = IllegalArgumentException::class)
     fun `facetize noindexes argumentexception`() {
         // no indexes
-        GeometryData(
+        Geometry(
             floatArrayOf(
                 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f
             ), false, false
@@ -18,7 +18,7 @@ class GeometryDataFacetizedTest {
     @Test
     fun `facetize noUV noNormals`() {
         // no indexes
-        val geom = GeometryData(
+        val geom = Geometry(
             floatArrayOf(
                 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f
             ), false, false,
@@ -35,7 +35,7 @@ class GeometryDataFacetizedTest {
     @Test
     fun `facetize UV noNormals`() {
         // no indexes
-        val geom = GeometryData(
+        val geom = Geometry(
             floatArrayOf(
                 0f, 0f, 0f, 0.1f, 0.2f,
                 1f, 0f, 0f, 0.3f, 0.4f,
@@ -72,7 +72,7 @@ class GeometryDataFacetizedTest {
     @Test
     fun `facetize noUV hasNormals`() {
         // no indexes
-        val geom = GeometryData(
+        val geom = Geometry(
             floatArrayOf(
                 0f, 0f, 0f, 11f, 22f, 33f, // reset all these
                 1f, 0f, 0f, 11f, 22f, 33f,
@@ -89,7 +89,7 @@ class GeometryDataFacetizedTest {
     }
 
 
-    private fun assertFacettedNormals(geometry: GeometryData) {
+    private fun assertFacettedNormals(geometry: Geometry) {
         assertTrue(geometry.hasNormals)
         // 3 triangles - each has 3 vertexes, generates 3 unique indexes
         assertEquals(9, geometry.vertexCount)

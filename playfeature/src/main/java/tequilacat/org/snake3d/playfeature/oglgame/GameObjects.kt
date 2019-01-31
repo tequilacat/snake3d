@@ -16,7 +16,7 @@ abstract class AbstractDrawableGameObject(
     private val objectContext: ObjectContext,
     gameObject: GameObject? = null) : AbstractGameObject(gameObject) {
 
-    protected abstract val geometry: Geometry
+    protected abstract val geometryBuffer: GeometryBuffer
 
     private val modelMatrix = FloatArray(16).also {
         Matrix.setIdentityM(it, 0)
@@ -29,12 +29,12 @@ abstract class AbstractDrawableGameObject(
     }
 
     override fun draw(sceneContext: SceneContext) {
-        geometryPainter.paint(geometry, objectContext, modelMatrix, sceneContext)
+        geometryPainter.paint(geometryBuffer, objectContext, modelMatrix, sceneContext)
     }
 }
 
 class DrawableGameObject(
-    override val geometry: Geometry,
+    override val geometryBuffer: GeometryBuffer,
     geometryPainter: GeometryPainter,
     primaryColor: FloatArray,
     textureId: Int = -1,
@@ -47,7 +47,7 @@ class DrawableGameObject(
 
 
 
-fun makeFloor(fW: Float, fH: Float, tileSpace: Float, addTexture: Boolean): GeometryData {
+fun makeFloor(fW: Float, fH: Float, tileSpace: Float, addTexture: Boolean): Geometry {
     val floorBuilder = GeometryBuilder()
     val floorZ = 0f
 

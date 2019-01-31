@@ -13,7 +13,7 @@ open class PrimitiveBuilder {
         height: Float, radius: Float, sides: Int,
         addCap: Boolean,
         addTextures: Boolean
-    ): GeometryData {
+    ): Geometry {
         val vertexes = makePrismVertexes(
             cx,
             cy,
@@ -24,7 +24,7 @@ open class PrimitiveBuilder {
             addTextures
         )
         val indexes = makePrismIndexes(sides, addCap)
-        return GeometryData(vertexes, false, addTextures, indexes).facetize()
+        return Geometry(vertexes, false, addTextures, indexes).facetize()
     }
 
     private fun makePrismIndexes(sides: Int, addCap: Boolean) : ShortArray {
@@ -106,7 +106,7 @@ class GeometryBuilder {
     /**
      * makes rotation, smooth or facetted vertically. if 2 points repeat it's facette between them.
      */
-//    fun makeRotation(points2d: FloatArray, from: Int, pointCount: Int, sides: Int): GeometryData {
+//    fun makeRotation(points2d: FloatArray, from: Int, pointCount: Int, sides: Int): Geometry {
 //        // find sizes of vertexes by computing hard breaks (equal points).
 //        // if y = 0 use common vertex
 //
@@ -252,7 +252,7 @@ class GeometryBuilder {
         )
     }
 
-    fun build() = GeometryData(
+    fun build() = Geometry(
         storedVertexes.toFloatArray(), true, textureUvAdded,
         storedIndexes.toShortArray()
     )

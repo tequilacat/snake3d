@@ -8,7 +8,7 @@ import tequilacat.org.snake3d.playfeature.IBodySegment
 import tequilacat.org.snake3d.playfeature.append
 import tequilacat.org.snake3d.playfeature.assertArraysEqual
 import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
-import tequilacat.org.snake3d.playfeature.glutils.GeometryData
+import tequilacat.org.snake3d.playfeature.glutils.Geometry
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -128,7 +128,7 @@ class BodyShapeTest {
         assertNotEquals(prevIndexes, builder.geometry.vertexes)
     }
 
-    private fun assertVertexData(bodyGeometry: GeometryData, firstVertex: Int,
+    private fun assertVertexData(bodyGeometry: Geometry, firstVertex: Int,
                                  geomOffset: Int, // offset within vertex subarray
                                  expectedVertexData: FloatArray,
                                  // how many in expected array per vertex
@@ -246,7 +246,7 @@ class BodyShapeTest {
      */
     @Test
     fun `intermediate ring equals last ring`() {
-        val getCoords = { g: GeometryData, indexes: Iterable<Int> ->
+        val getCoords = { g: Geometry, indexes: Iterable<Int> ->
             indexes.map { idx ->
                 val pos = idx * g.vertexFloatStride
                 listOf(g.vertexes[pos], g.vertexes[pos + 1], g.vertexes[pos + 2])
@@ -257,8 +257,7 @@ class BodyShapeTest {
             update(mutableListOf<IBodySegment>(
                 BodySegment(
                     10.0, 4.0, 1.0,
-                    PI/4, 2.0))
-                , false)
+                    PI/4, 2.0)))
             geometry
         }
         val v1 = getCoords(geom1, (0..12))
@@ -268,7 +267,7 @@ class BodyShapeTest {
                 BodySegment(
                     10.0, 4.0, 1.0,
                     PI/4, 2.0))
-                .append(PI/4, 2.0, false), false)
+                .append(PI/4, 2.0, false))
             geometry
         }
 
@@ -302,7 +301,7 @@ class BodyShapeTest {
         assertEquals(18, geom1.vertexCount)
         assertEquals(22, geom2.vertexCount)
 
-        val printV = {title:String, vertexIndex: Int, geom: GeometryData ->
+        val printV = {title:String, vertexIndex: Int, geom: Geometry ->
             val pos = vertexIndex * geom.vertexFloatStride
             println("$title[$vertexIndex]: ${geom.vertexes[pos]}, ${geom.vertexes[pos + 1]}, ${geom.vertexes[pos + 2]}")
             floatArrayOf(geom.vertexes[pos], geom.vertexes[pos + 1],geom.vertexes[pos + 2])
