@@ -86,8 +86,17 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
         fun update(segments: Collection<IBodySegment>) {
             bodyShape.update(segments)
+
+            //val time0 = System.nanoTime()
+            // TODO replace contents of buffer with glBufferSubData
+            if (::geometryBuffer.isInitialized) {
+                geometryBuffer.release()
+            }
+
             // TODO remove facetizing as soon as computeNormals is ready
             geometryBuffer = GeometryBuffer(bodyShape.geometry.facetize())
+            //val time1 = System.nanoTime()
+            //Log.d("render", "rebuffer: ${(time1-time0) / 1_000_000f} ms")
         }
     }
 
