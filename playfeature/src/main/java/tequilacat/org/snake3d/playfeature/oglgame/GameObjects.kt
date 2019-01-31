@@ -11,11 +11,12 @@ import kotlin.math.*
 abstract class AbstractGameObject(val gameObject: GameObject?) : Drawable
 
 // TODO template class for gameObject, move to Drawables
-class DrawableGameObject(primaryColor: FloatArray, private val geometry: Geometry,
-                         private val geometryPainter: GeometryPainter,
-                         textureId: Int = -1,
-                         gameObject: GameObject? = null) : AbstractGameObject(gameObject) {
-    private val objectContext = ObjectContext(primaryColor, textureId)
+abstract class AbstractDrawableGameObject(
+    private val geometryPainter: GeometryPainter,
+    private val objectContext: ObjectContext,
+    gameObject: GameObject? = null) : AbstractGameObject(gameObject) {
+
+    protected abstract val geometry: Geometry
 
     private val modelMatrix = FloatArray(16).also {
         Matrix.setIdentityM(it, 0)
@@ -31,6 +32,20 @@ class DrawableGameObject(primaryColor: FloatArray, private val geometry: Geometr
         geometryPainter.paint(geometry, objectContext, modelMatrix, sceneContext)
     }
 }
+
+class DrawableGameObject(
+    override val geometry: Geometry,
+    geometryPainter: GeometryPainter,
+    primaryColor: FloatArray,
+    textureId: Int = -1,
+    gameObject: GameObject? = null
+) : AbstractDrawableGameObject(
+    geometryPainter, ObjectContext(primaryColor, textureId), gameObject
+)
+
+
+
+
 
 fun makeFloor(fW: Float, fH: Float, tileSpace: Float, addTexture: Boolean): GeometryData {
     val floorBuilder = GeometryBuilder()

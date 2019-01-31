@@ -1,5 +1,6 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
+import android.util.Log
 import tequilacat.org.snake3d.playfeature.IBodySegment
 import tequilacat.org.snake3d.playfeature.glutils.GeometryData
 import kotlin.math.PI
@@ -34,6 +35,7 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
 
         if(vertexes.size < vertexCoordCount) {
             vertexes = FloatArray(vertexCoordCount + 1000)
+            Log.d("body", "increase vertexes to ${vertexes.size}")
         }
 
         // allocate indexes
@@ -43,6 +45,7 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
         // alloc in advance
         if(indexes.size < indexCount) {
             indexes = ShortArray(indexCount + 1000) //
+            Log.d("body", "increase indexes to ${indexes.size}")
         }
     }
 
@@ -60,7 +63,7 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
             indexes, indexCount,
             hasNormals = true,
             hasTexture = true
-        )
+        ).facetize() // TODO remove facetizing as soon as computeNormals is ready
     }
 
     private fun computeNormals() {

@@ -7,6 +7,7 @@ import android.opengl.Matrix
 import android.os.SystemClock
 import android.util.Log
 import tequilacat.org.snake3d.playfeature.Game
+import tequilacat.org.snake3d.playfeature.IBodySegment
 import tequilacat.org.snake3d.playfeature.R
 import tequilacat.org.snake3d.playfeature.glutils.*
 import javax.microedition.khronos.egl.EGLConfig
@@ -76,7 +77,19 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         LIGHT_POSITION.copyInto(lightPosGlobal, 0, 0, 4)
     }
 
-    private val bodyObject = BodyShape(4, Game.R_HEAD.toFloat())
+
+    class BodyShapeObject(painter: GeometryPainter) :
+        AbstractDrawableGameObject(painter, ObjectContext(ObjColors.BODY.rgb, -1)) {
+
+        private val bodyShape = BodyShape(4, Game.R_HEAD.toFloat())
+
+        override lateinit var geometry: Geometry
+
+        fun update(segments: Collection<IBodySegment>) {
+            bodyShape.update(segments)
+            geometry = Geometry(bodyShape.geometry)
+        }
+    }
 
     // compute all geometry once as number arrays, recreate OGL data on each surfaceCreated
 
@@ -99,6 +112,8 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     private lateinit var guraudPainter: GeometryPainter
     private lateinit var texturePainter: TexturePainter
     private lateinit var skyboxPainter: SkyboxProgramPainter
+
+    private lateinit var bodyShapeObject: BodyShapeObject
 
     private var obstacleTextureId: Int = 0
     private var pickableTextureId: Int = 0
@@ -152,28 +167,29 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         }
 
         floorGeometry = Geometry(makeFloor(game.fieldWidth, game.fieldHeight, bodyUnit() * 3, true))
-        gameObjects.add(DrawableGameObject(ObjColors.FLOOR.rgb, floorGeometry, texturePainter, textureId = floorTileTextureId))
+        gameObjects.add(DrawableGameObject(floorGeometry, texturePainter, ObjColors.FLOOR.rgb, textureId = floorTileTextureId))
 
 
         // add game objects
         gameObjects.addAll(game.fieldObjects.map {
             DrawableGameObject(
-                if (it.type == Game.GameObject.Type.OBSTACLE) ObjColors.OBSTACLE.rgb else ObjColors.PICKABLE.rgb,
                 if (it.type == Game.GameObject.Type.OBSTACLE) obstacleGeometry else pickableGeometry,
-                texturePainter, gameObject = it,
+                texturePainter,
+                if (it.type == Game.GameObject.Type.OBSTACLE) ObjColors.OBSTACLE.rgb else ObjColors.PICKABLE.rgb,
+                gameObject = it,
                 textureId = if (it.type == Game.GameObject.Type.OBSTACLE) obstacleTextureId else pickableTextureId
             ).apply { position(it.centerX.toFloat(), it.centerY.toFloat(), 0f, 0f) }})
 
-        headObj = DrawableGameObject(ObjColors.BODY.rgb, headGeometry,
-            phongPainter)
-        gameObjects.add(headObj!!)
+        headObj = DrawableGameObject(headGeometry, phongPainter, ObjColors.BODY.rgb)
+        // gameObjects.add(headObj!!) // don't show the head
 
+        bodyShapeObject = BodyShapeObject(guraudPainter)
         updateBody()
-        // gameObjects.add(bodyObject)
+        gameObjects.add(bodyShapeObject)
     }
 
     private fun updateBody() {
-        bodyObject.update(game.bodySegments)
+        bodyShapeObject.update(game.bodySegments)
     }
 
     // TODO remove this temp head object and replace with full body

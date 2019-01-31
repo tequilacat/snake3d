@@ -107,9 +107,8 @@ class Geometry(data: GeometryData) {
 
     // initialize
     init {
-        // TODO both buffers length - from provided size not from buffered array size!
-        vertexBufferId = bindBuffer(data.vertexes.toBuffer())
-        indexBufferId = if(indexCount == 0) 0 else bindBuffer(data.indexes.toBuffer())
+        vertexBufferId = bindBuffer(data.vertexes.toBuffer(data.vertexCount * data.vertexFloatStride))
+        indexBufferId = if(indexCount == 0) 0 else bindBuffer(data.indexes.toBuffer(data.indexCount))
     }
 
     // after we init{} the indexCount is defined
