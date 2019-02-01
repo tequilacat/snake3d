@@ -12,11 +12,13 @@ class DebugScene {
     // when not empty defines body shape
     val bodySegments =
         mutableListOf<IBodySegment>(
-            BodySegment(20.0, 4.0, 1.0, PI / 2, 5.0)
-        )
-            .append(PI / 4, 3.0)
-            .append(PI / 4, 3.0)
-            .append(PI / 4, 3.0)
+            BodySegment(20.0, 4.0, 1.0, PI/12, 0.47)
+        ).apply {
+            (1..96).forEach {
+                append(PI/12, 0.47, true)
+            }
+        }
+
 
     //private val LIGHT_POSITION = floatArrayOf(-10f, 5f, 10f, 1f)
 

@@ -1,5 +1,6 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
+import android.os.SystemClock
 import android.util.Log
 import tequilacat.org.snake3d.playfeature.IBodySegment
 import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
@@ -58,7 +59,10 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
         allocateArrays(segments.size)
         rebuildIndexes(segments)
         rebuildVertexes(segments)
+        //val stNormals = SystemClock.uptimeMillis()
         computeNormals()
+        //val stNormals1 = SystemClock.uptimeMillis()
+        //Log.d("perf", "Segments: ${segments.size}, Normals: $indexCount, time: ${stNormals1 - stNormals} ms")
 
         geometry = Geometry(
             vertexes, vertexCount,
@@ -68,36 +72,41 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
         )
     }
 
-    var triangleNormals = FloatArray(1000)
+    private val tmpNormals = FloatArray(3)
 
     private fun computeNormals() {
-        // sized exactly as index count since each 3 indexes are triangle with a normal
-        if(triangleNormals.size < indexCount) {
-            triangleNormals = FloatArray(indexCount + 1000) // incr by 1000
+        // reset normals to 0
+        for (vi in vertexFloatStride - 3 until vertexCount step vertexFloatStride) {
+            // reset normals
+            vertexes[vi] = 0f
+            vertexes[vi + 1] = 0f
+            vertexes[vi + 2] = 0f
         }
 
-        for (i in 0 until indexCount step 3) {
+        var i = 0
+        while(i < indexCount) {
+        //for (i in 0 until indexCount step 3) {
+            // compute normals
             CoordUtils.crossProduct(
-                triangleNormals, i, // end of stride (to account for possible UV in between
-                vertexes, indexes[i].toInt(), indexes[i+1].toInt(), indexes[i+2].toInt(), vertexFloatStride
+                tmpNormals, 0, // end of stride (to account for possible UV in between
+                vertexes, indexes[i].toInt(), indexes[i + 1].toInt(), indexes[i + 2].toInt(), vertexFloatStride
             )
-            CoordUtils.normalize(triangleNormals, i, triangleNormals, i)
+
+            var count = 3
+            while(count-- > 0) {
+            //for (it in 0..2) {
+                val vPos = indexes[i] * vertexFloatStride + 5
+                vertexes[vPos] += tmpNormals[0]
+                vertexes[vPos + 1] += tmpNormals[1]
+                vertexes[vPos + 2] += tmpNormals[2]
+                i++
+            }
+
+            //i += 3
         }
 
         for(vertexIndex in 0 until vertexCount) {
             val normalPos = vertexIndex * vertexFloatStride + 5
-            vertexes[normalPos] = 0f
-            vertexes[normalPos + 1] = 0f
-            vertexes[normalPos + 2] = 0f
-
-            // for each triangle referring the vertex append its normal to vertex normal
-            for(iIndex in 0 until indexCount) {
-                if (indexes[iIndex].toInt() == vertexIndex) {
-                    val trianglePos = iIndex - iIndex % 3
-                    (0..2).forEach { vertexes[normalPos + it] += triangleNormals[trianglePos + it] }
-                }
-            }
-
             CoordUtils.normalize(vertexes, normalPos, vertexes, normalPos)
         }
     }

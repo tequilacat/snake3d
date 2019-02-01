@@ -62,6 +62,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     // how far behind the head the eye is
     private val eyeRearDistance = bodyUnit() * 5
 
+//    private val debugScene: DebugScene? = DebugScene()
     private val debugScene: DebugScene? = null
 
 
@@ -102,14 +103,13 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
             val time3 = SystemClock.uptimeMillis()
 
-            // TODO remove facetizing as soon as computeNormals is ready
             geometryBuffer = GeometryBuffer(bodyGeometry)
 
             val time4 = SystemClock.uptimeMillis()
 
             Log.d(
                 "render",
-                "body update: 1: ${time1 - time0}, 2: ${time2 - time1}, 3: ${time3 - time2}, 4: ${time4 - time3}"
+                "body update: ${time1 - time0} / ${time2 - time1} / ${time3 - time2} / ${time4 - time3}"
             )
         }
     }
@@ -209,9 +209,6 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
                 textureId = if (it.type == Game.GameObject.Type.OBSTACLE) obstacleTextureId else pickableTextureId
             ).apply { position(it.centerX.toFloat(), it.centerY.toFloat(), 0f, 0f) }
         })
-
-        // headObj = DrawableGameObject(headGeometryBuffer, phongPainter, ObjColors.BODY.rgb)
-        // gameObjects.add(headObj!!) // don't show the head
 
         bodyShapeObject = BodyShapeObject(guraudPainter)
         updateBody()
@@ -320,8 +317,12 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         // Calculate the projection and view transformation
         Matrix.multiplyMM(drawContext.viewProjectionMatrix, 0, drawContext.projectionMatrix, 0, drawContext.viewMatrix, 0)
 
-        gameObjects.forEach { it.draw(drawContext) }
+        if(debugScene != null) {
+            // dbg update body on each draw
+            bodyShapeObject.update(debugScene.bodySegments)
+        }
 
+        gameObjects.forEach { it.draw(drawContext) }
         skyboxPainter.paint(drawContext)
     }
 

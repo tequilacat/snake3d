@@ -1,12 +1,10 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
+import android.os.SystemClock
 import org.junit.Test
 
 import org.junit.Assert.*
-import tequilacat.org.snake3d.playfeature.BodySegment
-import tequilacat.org.snake3d.playfeature.IBodySegment
-import tequilacat.org.snake3d.playfeature.append
-import tequilacat.org.snake3d.playfeature.assertArraysEqual
+import tequilacat.org.snake3d.playfeature.*
 import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
 import tequilacat.org.snake3d.playfeature.glutils.Geometry
 import kotlin.math.PI
@@ -23,7 +21,7 @@ class BodyShapeTest {
     private fun expandBy(list: MutableList<BodySegment>, count: Int) =
         1.rangeTo(count).forEach { _ -> list.add(list.last()) }
 
-    private val singleSegmentGeom = BodyShape(4, testRadius)
+    private fun singleSegmentGeom() = BodyShape(4, testRadius)
         .run {
             update(listOf(BodySegment(0.0, 0.0, 0.0, 0.0, 1.0)))
             geometry
@@ -32,9 +30,11 @@ class BodyShapeTest {
 
     @Test
     fun `build basicfeatures`() {
-        assertTrue(singleSegmentGeom.hasNormals)
-        assertTrue(singleSegmentGeom.hasTexture)
-        assertEquals(8, singleSegmentGeom.vertexFloatStride)
+        val geom = singleSegmentGeom()
+
+        assertTrue(geom.hasNormals)
+        assertTrue(geom.hasTexture)
+        assertEquals(8, geom.vertexFloatStride)
     }
 
     @Test
@@ -45,9 +45,10 @@ class BodyShapeTest {
 
     @Test
     fun indexes() {
+        val geom = singleSegmentGeom()
         // 32 triangles of these vertexes
         // compare provided count, not size of array since it's allocated in advance
-        assertEquals(32 * 3, singleSegmentGeom.indexCount)
+        assertEquals(32 * 3, geom.indexCount)
 
         // expected indexes
         val expectedIndexes = shortArrayOf(
@@ -60,8 +61,8 @@ class BodyShapeTest {
         // check
         for(vi in expectedIndexes.withIndex()){
             assertEquals(
-                "diff @${vi.index}: exp. ${vi.value} != [${singleSegmentGeom.indexes[vi.index]}]",
-                vi.value, singleSegmentGeom.indexes[vi.index])
+                "diff @${vi.index}: exp. ${vi.value} != [${geom.indexes[vi.index]}]",
+                vi.value, geom.indexes[vi.index])
         }
     }
 
@@ -213,8 +214,6 @@ class BodyShapeTest {
         ), 3)
     }
 
-    private val tolerance = 0.0001f
-
     /**
      * test that each vertex in a triangle has same normal which is normalized -
      * dont compar to the normal of its triangle!
@@ -241,11 +240,11 @@ class BodyShapeTest {
 
         val sin45 = sin(PI / 4).toFloat()
 
-        assertArrayEquals(floatArrayOf(-1f, 0f, 0f), getNormal(0), tolerance)
+        assertArrayEquals(floatArrayOf(-1f, 0f, 0f), getNormal(0), testFloatTolerance)
         assertArrayEquals(
             floatArrayOf(cos(3 * PI / 8).toFloat(), -sin(3 * PI / 8).toFloat(), 0f),
-            getNormal(9), tolerance)
-        assertArrayEquals(floatArrayOf(sin45, sin45, 0f), getNormal(21), tolerance)
+            getNormal(9), testFloatTolerance)
+        assertArrayEquals(floatArrayOf(sin45, sin45, 0f), getNormal(21), testFloatTolerance)
     }
 
     /**
@@ -281,47 +280,4 @@ class BodyShapeTest {
         val v2 = getCoords(geom2, (0..12))
         assertArraysEqual(v1.toFloatArray(), v2.toFloatArray())
     }
-
-    /*@Test
-    fun compareSegmentBreak() {
-        // must have same coords at end of 1st segment
-        val segments1 = mutableListOf<IBodySegment>(
-            BodySegment(
-                10.0, 4.0, 1.0,
-                PI/4, 2.0))
-        val segments2 = mutableListOf<IBodySegment>(
-            BodySegment(
-                10.0, 4.0, 1.0,
-                PI/4, 2.0))
-            .append(PI/4, 2.0, false)
-
-        val geom1 = BodyShape(4, testRadius).run {
-            update(segments1, false)
-            geometry
-        }
-
-        val geom2 = BodyShape(4, testRadius).run {
-            update(segments2, false)
-            geometry
-        }
-
-        assertEquals(18, geom1.vertexCount)
-        assertEquals(22, geom2.vertexCount)
-
-        val printV = {title:String, vertexIndex: Int, geom: Geometry ->
-            val pos = vertexIndex * geom.vertexFloatStride
-            println("$title[$vertexIndex]: ${geom.vertexes[pos]}, ${geom.vertexes[pos + 1]}, ${geom.vertexes[pos + 2]}")
-            floatArrayOf(geom.vertexes[pos], geom.vertexes[pos + 1],geom.vertexes[pos + 2])
-        }
-
-        //println("Body 1:")
-        (0..12).forEach { i ->
-            val v1 = printV("G1", i, geom1)
-            val v2 = printV("G2", i, geom2)
-            assertTrue("  Index $i coord differs: ${v1.contentToString()}, ${v2.contentToString()}",
-                v1 contentEquals v2)
-        }
-//        println("Body 2:")
-//        (9..12).forEach { i -> printV(i, geom2) }
-    }*/
 }
