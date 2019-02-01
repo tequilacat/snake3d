@@ -437,9 +437,6 @@ fun MutableList<IBodySegment>.append(
 }
 
 class BodySegment(var dblStartX: Double, var dblStartY: Double, var dblStartZ: Double, val angle: Double, var dblLength: Double) : IBodySegment {
-
-//    constructor(dblStartX: Double, dblStartY: Double, angle: Double, dblLength: Double) :
-//            this(dblStartX, dblStartY, 0.0, angle, dblLength)
     val angleSinus = sin(angle)
     val angleCosinus = cos(angle)
 

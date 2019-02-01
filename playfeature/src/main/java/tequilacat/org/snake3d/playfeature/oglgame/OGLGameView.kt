@@ -85,18 +85,32 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         override lateinit var geometryBuffer: GeometryBuffer
 
         fun update(segments: Collection<IBodySegment>) {
+            val time0 = SystemClock.uptimeMillis()
             bodyShape.update(segments)
 
-            //val time0 = System.nanoTime()
-            // TODO replace contents of buffer with glBufferSubData
+            val time1 = SystemClock.uptimeMillis()
+
+
+            // TODO replace contents of buffer with glBufferSubData to decrease GC
             if (::geometryBuffer.isInitialized) {
                 geometryBuffer.release()
             }
 
+            val time2 = SystemClock.uptimeMillis()
+
+            val bodyGeometry = bodyShape.geometry // .facetize()
+
+            val time3 = SystemClock.uptimeMillis()
+
             // TODO remove facetizing as soon as computeNormals is ready
-            geometryBuffer = GeometryBuffer(bodyShape.geometry.facetize())
-            //val time1 = System.nanoTime()
-            //Log.d("render", "rebuffer: ${(time1-time0) / 1_000_000f} ms")
+            geometryBuffer = GeometryBuffer(bodyGeometry)
+
+            val time4 = SystemClock.uptimeMillis()
+
+            Log.d(
+                "render",
+                "body update: 1: ${time1 - time0}, 2: ${time2 - time1}, 3: ${time3 - time2}, 4: ${time4 - time3}"
+            )
         }
     }
 
@@ -143,7 +157,6 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         skyboxPainter = SkyboxProgramPainter(context)
 
         // build VBO buffers for head and obstacles- in onSurfaceCreated old buffers should be freed
-        // TODO check in docs whether VBOs are really freed on restart
         obstacleGeometryBuffer = GeometryBuffer(obstacleGeometry)
         headGeometryBuffer = GeometryBuffer(headGeometry)
         pickableGeometryBuffer = GeometryBuffer(pickableGeometry)
@@ -197,7 +210,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             ).apply { position(it.centerX.toFloat(), it.centerY.toFloat(), 0f, 0f) }
         })
 
-        headObj = DrawableGameObject(headGeometryBuffer, phongPainter, ObjColors.BODY.rgb)
+        // headObj = DrawableGameObject(headGeometryBuffer, phongPainter, ObjColors.BODY.rgb)
         // gameObjects.add(headObj!!) // don't show the head
 
         bodyShapeObject = BodyShapeObject(guraudPainter)
@@ -212,9 +225,6 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             bodyShapeObject.update(game.bodySegments)
         }
     }
-
-    // TODO remove this temp head object and replace with full body
-    private var headObj: AbstractGameObject? = null
 
     private fun updateConsumables() {
         val gameObjSet = game.fieldObjects.toSet()
@@ -270,7 +280,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
                 0f, 0.0f, 1.0f
             )
 
-            headObj!!.position(head.endX, head.endY, 0f, head.alpha)
+            // headObj!!.position(head.endX, head.endY, 0f, head.alpha)
         }
 
         // compute light in eye pos

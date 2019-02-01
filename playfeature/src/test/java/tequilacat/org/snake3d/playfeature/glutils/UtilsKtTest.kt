@@ -3,6 +3,7 @@ package tequilacat.org.snake3d.playfeature.glutils
 import org.junit.Test
 
 import org.junit.Assert.*
+import tequilacat.org.snake3d.playfeature.testFloatTolerance
 
 class UtilsKtTest {
     // test that capacity is respected or default, with exceptions also
@@ -35,5 +36,23 @@ class UtilsKtTest {
     @Test(expected = IndexOutOfBoundsException::class)
     fun `FloatArray toBuffer badSize`() {
         FloatArray(2).toBuffer(10)
+    }
+
+    @Test
+    fun `crossproduct of point`() {
+        val vertexes = floatArrayOf(0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f)
+        val normal = FloatArray(3)
+        CoordUtils.crossProduct(normal, 0, vertexes, 0, 1, 2, 3)
+        assertArrayEquals("crossproduct of point must be 0,0,0",
+            floatArrayOf(0f, 0f, 0f), normal, testFloatTolerance)
+    }
+
+    @Test
+    fun `crossproduct of line`() {
+        val vertexes = floatArrayOf(0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 0f)
+        val normal = FloatArray(3)
+        CoordUtils.crossProduct(normal, 0, vertexes, 0, 1, 2, 3)
+        assertArrayEquals("crossproduct of line must be 0,0,0",
+            floatArrayOf(0f, 0f, 0f), normal, testFloatTolerance)
     }
 }

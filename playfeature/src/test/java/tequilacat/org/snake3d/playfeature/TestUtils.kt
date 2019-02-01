@@ -2,6 +2,8 @@ package tequilacat.org.snake3d.playfeature
 
 import org.junit.Assert
 
+val testFloatTolerance = 0.00001f
+
 fun assertArraysEqual(v1: FloatArray, v2: FloatArray) {
     Assert.assertEquals(v1.size, v2.size)
     if (! (v1 contentEquals v2)) {

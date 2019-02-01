@@ -2,7 +2,9 @@ package tequilacat.org.snake3d.playfeature.oglgame
 
 import android.util.Log
 import tequilacat.org.snake3d.playfeature.IBodySegment
+import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
 import tequilacat.org.snake3d.playfeature.glutils.Geometry
+import java.nio.FloatBuffer
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -66,9 +68,38 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
         )
     }
 
+    var triangleNormals = FloatArray(1000)
+
     private fun computeNormals() {
-        // compute normal foreach triangle
-        // for each vertex compute normal as normalized sum of
+        // sized exactly as index count since each 3 indexes are triangle with a normal
+        if(triangleNormals.size < indexCount) {
+            triangleNormals = FloatArray(indexCount + 1000) // incr by 1000
+        }
+
+        for (i in 0 until indexCount step 3) {
+            CoordUtils.crossProduct(
+                triangleNormals, i, // end of stride (to account for possible UV in between
+                vertexes, indexes[i].toInt(), indexes[i+1].toInt(), indexes[i+2].toInt(), vertexFloatStride
+            )
+            CoordUtils.normalize(triangleNormals, i, triangleNormals, i)
+        }
+
+        for(vertexIndex in 0 until vertexCount) {
+            val normalPos = vertexIndex * vertexFloatStride + 5
+            vertexes[normalPos] = 0f
+            vertexes[normalPos + 1] = 0f
+            vertexes[normalPos + 2] = 0f
+
+            // for each triangle referring the vertex append its normal to vertex normal
+            for(iIndex in 0 until indexCount) {
+                if (indexes[iIndex].toInt() == vertexIndex) {
+                    val trianglePos = iIndex - iIndex % 3
+                    (0..2).forEach { vertexes[normalPos + it] += triangleNormals[trianglePos + it] }
+                }
+            }
+
+            CoordUtils.normalize(vertexes, normalPos, vertexes, normalPos)
+        }
     }
 
     private fun rebuildIndexes(bodySegments: Collection<IBodySegment>) {
