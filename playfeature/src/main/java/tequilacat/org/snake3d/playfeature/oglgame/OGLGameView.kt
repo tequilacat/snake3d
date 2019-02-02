@@ -10,6 +10,7 @@ import tequilacat.org.snake3d.playfeature.*
 import tequilacat.org.snake3d.playfeature.glutils.*
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
+import kotlin.math.PI
 import kotlin.math.abs
 
 /**
@@ -78,10 +79,11 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     }
 
 
-    class BodyShapeObject(painter: GeometryPainter) :
-        AbstractDrawableGameObject(painter, ObjectContext(ObjColors.BODY.rgb, -1)) {
+    class BodyShapeObject(painter: GeometryPainter, bodyTextureId: Int) :
+        AbstractDrawableGameObject(painter, ObjectContext(ObjColors.BODY.rgb, bodyTextureId)) {
 
-        private val bodyShape = BodyShape(6, Game.R_HEAD.toFloat())
+        // start texture V at bottom lowest point (3 * PI / 2)
+        private val bodyShape = BodyShape(10, Game.R_HEAD.toFloat(), 3 * PI.toFloat() / 2, 1f, 0f)
 
         override lateinit var geometryBuffer: GeometryBuffer
 
@@ -141,6 +143,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     private var obstacleTextureId: Int = 0
     private var pickableTextureId: Int = 0
     private var floorTileTextureId: Int = 0
+    private var bodyTextureId: Int = 0
 
     private fun initOnSurfaceCreated() {
         game.running = true
@@ -149,6 +152,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         obstacleTextureId = loadTexture(context, R.raw.cokecan_graphics)
         pickableTextureId = loadTexture(context, R.raw.guinnes)
         floorTileTextureId = loadTexture(context, R.raw.oldtiles)
+        bodyTextureId = loadTexture(context, R.raw.snake_yellowbrown)
 
         // no need to recreate
         phongPainter = ShadedPainter(SemiPhongProgram(context))
@@ -210,7 +214,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             ).apply { position(it.centerX.toFloat(), it.centerY.toFloat(), 0f, 0f) }
         })
 
-        bodyShapeObject = BodyShapeObject(guraudPainter)
+        bodyShapeObject = BodyShapeObject(texturePainter, bodyTextureId)
         updateBody()
         gameObjects.add(bodyShapeObject)
     }

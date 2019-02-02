@@ -1,6 +1,5 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
-import android.os.SystemClock
 import org.junit.Test
 
 import org.junit.Assert.*
@@ -15,13 +14,15 @@ class BodyShapeTest {
 
     private val testRadius = 1f
 
+    private fun bodyShape() = BodyShape(4, testRadius,0f,1f, 0f)
+
     /**
      * adds count copies of last element
      */
     private fun expandBy(list: MutableList<BodySegment>, count: Int) =
         1.rangeTo(count).forEach { _ -> list.add(list.last()) }
 
-    private fun singleSegmentGeom() = BodyShape(4, testRadius)
+    private fun singleSegmentGeom() = bodyShape()
         .run {
             update(listOf(BodySegment(0.0, 0.0, 0.0, 0.0, 1.0)))
             geometry
@@ -35,12 +36,6 @@ class BodyShapeTest {
         assertTrue(geom.hasNormals)
         assertTrue(geom.hasTexture)
         assertEquals(8, geom.vertexFloatStride)
-    }
-
-    @Test
-    fun `facesegments count always even`() {
-        assertEquals(4, BodyShape(4, testRadius).segmentFaceCount)
-        assertEquals(4, BodyShape(5, testRadius).segmentFaceCount)
     }
 
     @Test
@@ -74,7 +69,7 @@ class BodyShapeTest {
     fun `index array reallocation`() {
         val segments = mutableListOf(BodySegment(0.0, 0.0, 0.0, 0.0, 1.0))
 
-        val builder =  BodyShape(4, testRadius)
+        val builder = bodyShape()
         builder.update(segments)
 
         assertEquals((segments.size + 3) * 8 * 3, builder.geometry.indexCount)
@@ -97,6 +92,31 @@ class BodyShapeTest {
     /////////////////////////////////////////////////
     // Vertex test
 
+    /**
+     * how the start angle affects vertex positions in section
+     */
+    @Test
+    fun `vertex ring start`() {
+        val nFaces = 5
+        val segments = mutableListOf<IBodySegment>(
+            BodySegment(0.0, 0.0, 0.0, 0.0, 10.0))
+            .append(PI / 4, 10.0, true)
+            .append(PI / 4, 10.0, true)
+
+        val startAngle1 = 1.0f // just some angle in Q1
+        // make 5 so Z is never repeated for same section
+        val bodyShape =  BodyShape(nFaces, testRadius, startAngle1, 10f, 0f)
+                bodyShape.update(segments)
+        val geometry = bodyShape.geometry
+
+        // 3 main segments + 2 smaller rings - we check main segments only
+        // 1 + nRing*4 (starting) - all Z coords are sin(startAngle)
+        (1..3).forEach {
+            assertEquals(sin(startAngle1),
+                geometry.vertexes[(1 + nFaces * it) * geometry.vertexFloatStride + 2],
+                testFloatTolerance)
+        }
+    }
 
     /**
      *  test (on expected hardcoded sizes) that size is increased first (and arrays differ by reference)
@@ -106,7 +126,7 @@ class BodyShapeTest {
     fun `vertex array reallocation`() {
         val segments = mutableListOf(BodySegment(0.0, 0.0, 0.0, 0.0, 1.0))
 
-        val builder =  BodyShape(4, testRadius)
+        val builder =  bodyShape()
         builder.update(segments)
 
         assertEquals(
@@ -159,7 +179,7 @@ class BodyShapeTest {
         val segments = mutableListOf(BodySegment(0.0, 0.0, testRadius.toDouble(),
             0.0, 10.0))
 
-        val builder =  BodyShape(4, testRadius)
+        val builder =  bodyShape()
         builder.update(segments)
 
         // Vertexes (single segment) - 4 on each side, 4 in intermediate to ends, 1+1 ends
@@ -220,8 +240,7 @@ class BodyShapeTest {
      * */
     @Test
     fun normals() {
-
-        val geometry =  BodyShape(4, testRadius).run {
+        val geometry =  bodyShape().run {
             update(mutableListOf<IBodySegment>(
                 BodySegment(0.0, 0.0, testRadius.toDouble(), 0.0, 10.0))
                 .append(PI / 4, 10.0, true)
@@ -259,7 +278,7 @@ class BodyShapeTest {
             }.flatten()
         }
 
-        val geom1 = BodyShape(4, testRadius).run {
+        val geom1 = bodyShape().run {
             update(mutableListOf<IBodySegment>(
                 BodySegment(
                     10.0, 4.0, 1.0,
@@ -268,7 +287,7 @@ class BodyShapeTest {
         }
         val v1 = getCoords(geom1, (0..12))
 
-        val geom2 = BodyShape(4, testRadius).run {
+        val geom2 = bodyShape().run {
             update(mutableListOf<IBodySegment>(
                 BodySegment(
                     10.0, 4.0, 1.0,
@@ -279,5 +298,78 @@ class BodyShapeTest {
 
         val v2 = getCoords(geom2, (0..12))
         assertArraysEqual(v1.toFloatArray(), v2.toFloatArray())
+    }
+
+    /**
+     * test that each segment starting FROM NOSE (backward) has U (x)
+     * according to length and runLength coeff
+     */
+    @Test
+    fun `texture U`() {
+        val uPer1Length = 0.1f // 1
+        val nFaceSegments = 4
+        val segment = mutableListOf<IBodySegment>(
+            BodySegment(0.0, 0.0, 0.0, 0.0, 1.0))
+            .append(PI / 4, 0.3, true)
+            .append(-PI / 4, 1.0, true)
+
+        val geometry =  BodyShape(nFaceSegments, 0.5f, 0f, uPer1Length, 0f).run {
+            update(segment);geometry}
+
+        // 3 segments, 6 rings (0-5), check main rings
+        val checkRing = { ringIndex: Int, uExpected: Float ->
+            val vIndex = nFaceSegments * ringIndex + 1
+            (0 until nFaceSegments).forEach {
+                assertEquals("Ring #$ringIndex, vertex #$it",
+                    uExpected,
+                    geometry.vertexes[(vIndex + it) * geometry.vertexFloatStride + 3],
+                    testFloatTolerance
+                )
+            }
+        }
+        // check U (V) - from head to tail, the ring texture maps to run length
+
+        // tailpoint - v#0
+        assertEquals(0.05f + 0.1f + 0.03f + 0.1f + 0.05f, geometry.vertexes[3], testFloatTolerance)
+        // check nose (last vertex) is 0
+        assertEquals(0f, geometry.vertexes[geometry.vertexCount*geometry.vertexFloatStride - 5], testFloatTolerance)
+
+        // nose/tail are 0.7R from segment end points
+        checkRing(5, 0.05f - 0.05f * 0.7f) // nose small ring
+
+        checkRing(4, 0.05f) // nose ring
+        checkRing(3, 0.05f + 0.1f)
+        checkRing(2, 0.05f + 0.1f + 0.03f) // nose ring
+        checkRing(1, 0.05f + 0.1f + 0.03f + 0.1f) // nose ring
+
+        checkRing(0, 0.05f + 0.1f + 0.03f + 0.1f + 0.05f * 0.7f) // tail small ring
+    }
+
+    /**
+     * test that each point has its assigned V according to start U angle.
+     * assume texture is painted from top point (V = 0) down (V = 1)
+     */
+    @Test
+    fun `texture V`() {
+        val nFaceSegments = 10
+        val geometry = BodyShape(nFaceSegments, 0.5f, 3 * PI.toFloat() / 2, 1f, 0f).run {
+            update(mutableListOf<IBodySegment>(
+                BodySegment(0.0, 0.0, 0.0, 0.0, 1.0)
+            ));geometry
+        }
+
+        val expectedV = FloatArray(10) { it * 0.1f}
+
+        for (nRing in 0..3) {
+            val ringVI = 1 + nRing * nFaceSegments
+            assertArrayEquals(expectedV,
+                (0 until nFaceSegments).map { fsi ->
+                    geometry.vertexes[(ringVI + fsi) * geometry.vertexFloatStride + 4]
+                }.toFloatArray(), testFloatTolerance)
+        }
+
+        // nose and tail have 0.5 so far - TODO understand what to put here
+        assertEquals(0.5f, geometry.vertexes[4])
+        assertEquals(0.5f, geometry.vertexes[geometry.vertexCount*geometry.vertexFloatStride - 4])
     }
 }

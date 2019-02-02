@@ -1,25 +1,31 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
-import android.os.SystemClock
-import android.util.Log
 import tequilacat.org.snake3d.playfeature.IBodySegment
 import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
 import tequilacat.org.snake3d.playfeature.glutils.Geometry
-import java.nio.FloatBuffer
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
+/**
+ * @param startAngle at which angle section vertex iteration starts
+ * @param uPerLengthUnit how much U per 1.0 of run length
+ * @param vStart texture V at angle 0
+ */
+class BodyShape(
+    val segmentFaceCount: Int, private val bodyRadius: Float,
+    private val startAngle: Float,
+    private val uPerLengthUnit: Float, private val vStart: Float
+) {
 
     // always even count
-    val segmentFaceCount = requestedSegmentFaceCount - (requestedSegmentFaceCount and 1)
-    val vertexFloatStride = 8
+    private val vertexFloatStride = 8
 
     private val segmentAngleSinCos = Array(segmentFaceCount) {
         Pair(
-            sin(PI * 2 / segmentFaceCount * it).toFloat(),
-            cos(PI * 2 / segmentFaceCount * it).toFloat())
+            sin(startAngle + PI * 2 / segmentFaceCount * it).toFloat(),
+            cos(startAngle + PI * 2 / segmentFaceCount * it).toFloat()
+        )
     }
 
     // last generated geometry
@@ -59,6 +65,7 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
         allocateArrays(segments.size)
         rebuildIndexes(segments)
         rebuildVertexes(segments)
+
         //val stNormals = SystemClock.uptimeMillis()
         computeNormals()
         //val stNormals1 = SystemClock.uptimeMillis()
@@ -154,10 +161,13 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
         }
     }
 
-    private fun addRing(atIndex: Int, cx: Float, cy: Float, cz: Float, radius: Float, angle: Float) {
+    private fun addRing(atIndex: Int, cx: Float, cy: Float, cz: Float, radius: Float, angle: Float,
+                        ringU: Float) {
         val sinus = sin(angle)
         val cosinus = cos(angle)
         var index = atIndex // 1 + ringIndex * segmentFaceCount * vertexFloatStride
+        val dV = 1f / segmentFaceCount
+        var currV = 0f
 
         for ((aSin, aCos) in segmentAngleSinCos) {
             // compute coord of every vertex of the segment
@@ -166,7 +176,10 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
             vertexes[index] = (cx + dx0 * sinus)
             vertexes[index + 1] = (cy - dx0 * cosinus)
             vertexes[index + 2] = cz + radius * aSin
+            vertexes[index + 3] = ringU
+            vertexes[index + 4] = currV
 
+            currV += dV
             index += vertexFloatStride
         }
     }
@@ -175,13 +188,16 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
         val endRadius = bodyRadius
         val endCorrLen = bodyRadius * 0.7f
         val corrRadius = bodyRadius * 0.7f
-
+        val totalLength = bodySegments.sumByDouble { it.length.toDouble() }.toFloat() + bodyRadius * 2
+        var currentU = totalLength * uPerLengthUnit
         val first = bodySegments.first()
 
         // add tail point
         vertexes[0] = first.startX - endRadius * first.alphaCosinus
         vertexes[1] = first.startY - endRadius * first.alphaSinus
         vertexes[2] = first.startZ
+        vertexes[3] = currentU
+        vertexes[4] = 0.5f
 
         var index = vertexFloatStride
         val ringStride = segmentFaceCount * vertexFloatStride
@@ -189,8 +205,10 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
         // add first correction ring
         addRing(index,
             first.startX - endCorrLen * first.alphaCosinus,
-            first.startY - endCorrLen * first.alphaSinus, first.startZ, corrRadius, first.alpha)
+            first.startY - endCorrLen * first.alphaSinus, first.startZ, corrRadius, first.alpha,
+            (totalLength - bodyRadius + endCorrLen) * uPerLengthUnit)
         index += ringStride
+        currentU -= bodyRadius * uPerLengthUnit
 
         var prevSegment: IBodySegment? = null
 
@@ -199,26 +217,33 @@ class BodyShape(requestedSegmentFaceCount: Int, private val bodyRadius: Float) {
                 index, segment.startX, segment.startY, segment.startZ, bodyRadius,
                 if (prevSegment != null)
                     (segment.alpha + prevSegment.alpha) / 2
-                else segment.alpha
+                else segment.alpha,
+                currentU
             )
 
+            currentU -= uPerLengthUnit*segment.length
             prevSegment = segment
             index += ringStride
         }
 
         val last = bodySegments.last()
         // add last segment end ring
-        addRing(index, last.endX, last.endY, last.endZ, bodyRadius, last.alpha)
+        addRing(index, last.endX, last.endY, last.endZ, bodyRadius, last.alpha, currentU)
         index += ringStride
 
         // add last correction ring
-        addRing(index,
+        addRing(
+            index,
             last.endX + endCorrLen * last.alphaCosinus,
-            last.endY + endCorrLen * last.alphaSinus, last.endZ, corrRadius, last.alpha)
+            last.endY + endCorrLen * last.alphaSinus, last.endZ, corrRadius, last.alpha,
+            (bodyRadius - endCorrLen) * uPerLengthUnit)
         index += ringStride
         // add nose point
         vertexes[index++] = last.endX + endRadius * last.alphaCosinus
         vertexes[index++] = last.endY + endRadius * last.alphaSinus
-        vertexes[index] = last.endZ
+        vertexes[index++] = last.endZ
+
+        vertexes[index++] = 0f // nose U is always 0
+        vertexes[index] = 0.5f // nose V TODO what should be V for end points? middle?
     }
 }
