@@ -1,9 +1,8 @@
 package tequilacat.org.snake3d.playfeature
 
-import android.graphics.Canvas
-import android.graphics.Paint
 import android.graphics.RectF
 import android.os.SystemClock
+import tequilacat.org.snake3d.playfeature.GameGeometry.Companion.R_HEAD
 import java.util.*
 import kotlin.math.cos
 import kotlin.math.sin
@@ -17,23 +16,14 @@ class Game(private val addObstacles: Boolean = true) {
     var dbgStatus: String = "none"
 
     /// level data
+    // TODO make Level class private
     data class Level(val fieldWidth: Double, val fieldHeight: Double, val pickableCount: Int, val obstacleCount: Int)
     private val levels = listOf(Level(100.0, 100.0, 20, 5))
     private var currentLevelIndex = 0
-    private var currentLevel: Level = levels[currentLevelIndex]
 
-    val fieldWidth get() = currentLevel.fieldWidth.toFloat()
-    val fieldHeight get() = currentLevel.fieldHeight.toFloat()
+    private lateinit var sceneImpl: GameScene
 
-    val fieldObjects get() = fieldObjectList as Collection<GameObject>
-
-    // objects on field
-    private val fieldObjectList = mutableListOf<GameObject>()
-    private val bodySegmentsList = LinkedList<BodySegment>()
-
-    val bodySegments get() = bodySegmentsList as Collection<BodySegment>
-
-    //private var lastInteractionTimeNs: Long = 0
+    val scene: IGameScene get() { return sceneImpl }
 
     private var lastInteraction: Long = -1L
 
@@ -53,12 +43,12 @@ class Game(private val addObstacles: Boolean = true) {
     companion object {
         // Assume SI: meters, seconds
 
-        const val R_HEAD = 1.0
-        const val R_OBSTACLE = 1.0
-        const val R_PICKABLE = 1.0
+//        const val R_HEAD = 1.0
+//        const val R_OBSTACLE = 1.0
+//        const val R_PICKABLE = 1.0
         const val OBJCENTER_MIN_DISTANCE = 4.0 // object centers cannot be closer than this
 
-        const val MARGIN = R_HEAD * 4 // margin along sizes not seeded by objects
+        const val FIELD_SAFEMARGIN = R_HEAD * 4 // margin along sizes not seeded by objects
 
         const val SPEED_M_NS = 10.0 / 1_000 // 10 m/s
 
@@ -67,22 +57,19 @@ class Game(private val addObstacles: Boolean = true) {
 
         // device rotation within +- threshold does not cause turns
         const val TILT_THRESHOLD = 5.0
-
     }
 
+    private class GameObject(override val type: IFieldObject.Type, private val centerDblX: Double, private val centerDblY: Double) : IFieldObject {
+        val radius = type.radius
 
-    class GameObject(val type: Type, val centerX: Double, val centerY: Double) {
-        enum class Type(val radius: Double){
-            OBSTACLE(R_OBSTACLE), PICKABLE(R_PICKABLE)
-        }
-
-        val radius: Double get() = type.radius
+        override val centerX = centerDblX.toFloat()
+        override val centerY = centerDblY.toFloat()
 
         private val boundingBox = RectF(
-            (centerX - radius).toFloat(),
-            (centerY - radius).toFloat(),
-            (centerX + radius).toFloat(),
-            (centerY + radius).toFloat()
+            (centerDblX - radius).toFloat(),
+            (centerDblY - radius).toFloat(),
+            (centerDblX + radius).toFloat(),
+            (centerDblY + radius).toFloat()
         )
 
         // for performace first check rect overlapping
@@ -92,8 +79,8 @@ class Game(private val addObstacles: Boolean = true) {
             (x + otherRadius).toFloat(),
             (y + otherRadius).toFloat() )
                 && run {
-            val dx = centerX - x
-            val dy = centerY - y
+            val dx = centerDblX - x
+            val dy = centerDblY - y
             val sqDistance = dx * dx + dy * dy
             val twoRadiuses = radius + otherRadius
             sqDistance < twoRadiuses * twoRadiuses
@@ -101,77 +88,24 @@ class Game(private val addObstacles: Boolean = true) {
     }
 
     init {
-        init()
+        firstLevel()
     }
 
-    fun init() {
-        // fills field with objs and stores initial time.
-        // continueGame always at 0x0 + head radius + safe margin for rounding errors, and looking to center
-
-        try {
-            seed()
-        } catch (e: Exception) {
-            fieldObjectList.clear()
-        }
-
-        bodySegmentsList.clear()
-        bodySegmentsList.addFirst(BodySegment(MARGIN / 2, MARGIN / 2, R_HEAD, 0.0, R_HEAD * 4))
-
-        // just set initial timestamp
-        //continueGame()
-    }
-
+    // Just reload same level
+    private fun nextLevel() = initLevel(0)
+    private fun firstLevel() = initLevel(0)
 
     /**
-     * seeds field with initial
+     * creates a scene from current level
      */
-    private fun seed() {
-        fieldObjectList.clear()
-//        fieldObjectList.addAll(listOf(
-//            GameObject(GameObject.Type.PICKABLE, 50.0, 50.0),
-//            GameObject(GameObject.Type.PICKABLE, 50.0, 20.0),
-//            GameObject(GameObject.Type.PICKABLE, 50.0, 30.0),
-//            GameObject(GameObject.Type.OBSTACLE, 30.0, 20.0),
-//            GameObject(GameObject.Type.OBSTACLE, 40.0, 20.0)
-//        ))
-
-        if(addObstacles) {
-            for (pair in listOf(
-                Pair(GameObject.Type.PICKABLE, currentLevel.pickableCount),
-                Pair(GameObject.Type.OBSTACLE, currentLevel.obstacleCount)
-            )) {
-
-                for (i in 0 until pair.second) {
-                    var tries = 20 // if cannot find a free cell for 20 tries we fail miserably
-                    var objX: Double
-                    var objY: Double
-                    var objPlaced: Boolean
-
-                    do {
-                        objX = Random.nextDouble(MARGIN, fieldWidth - MARGIN)
-                        objY = Random.nextDouble(MARGIN, fieldHeight - MARGIN)
-                        tries--
-                        objPlaced = !fieldObjectList.any() { it.isColliding(objX, objY, pair.first.radius) }
-                    } while (!objPlaced && tries > 0)
-
-                    if (!objPlaced) {
-                        throw IllegalArgumentException("Cannot randomly place that much game objects")
-                    }
-
-                    fieldObjectList.add(GameObject(pair.first, objX, objY))
-                }
-            }
-        }
+    private fun initLevel(levelIndex: Int) {
+        currentLevelIndex = levelIndex
+        sceneImpl = GameScene(levels[levelIndex])
     }
 
-    /**
-     * sets initial timestamp
-     */
-//    fun continueGame() {
-//        lastInteractionTimeNs = System.nanoTime()
-//    }
 
-    fun Float.f(digits: Int) = java.lang.String.format("%.${digits}f", this)
+
+//    fun Float.f(digits: Int) = java.lang.String.format("%.${digits}f", this)
 
     /// updates state controlled by device position
     fun updatePositionalControls(azimuth: Float, pitch: Float, roll: Float) {
@@ -189,114 +123,7 @@ class Game(private val addObstacles: Boolean = true) {
         else -> 0.0
     }
 
-    private val fillPainter = Paint().apply {
-        style = Paint.Style.FILL
-        isAntiAlias = false
-    }
-
-    private fun drawGameObject(c:Canvas, gameObject: GameObject, ratio: Double) {
-        fillPainter.color = when(gameObject.type) {
-            GameObject.Type.OBSTACLE -> 0xffff0000.toInt()
-            GameObject.Type.PICKABLE -> 0xff0000ff.toInt()
-        }
-
-        c.drawCircle(
-            (gameObject.centerX * ratio).toFloat(), (gameObject.centerY * ratio).toFloat(),
-            (gameObject.radius * ratio).toFloat(), fillPainter)
-    }
-
-    object Paints {
-        val headPaint = Paint().apply {
-            color = 0xffff0000.toInt()
-            style = Paint.Style.STROKE
-            isAntiAlias = true
-        }
-
-        val linePaint = Paint().apply {
-            color = 0xff0000ff.toInt()
-            style = Paint.Style.STROKE
-            strokeWidth = 3.0f
-            isAntiAlias = true
-            textSize = 40f
-        }
-
-        val bodyPaint = Paint().apply {
-            color = 0xff000000.toInt()
-            style = Paint.Style.STROKE
-            isAntiAlias = true
-        }
-    }
-
-    /**
-     * draws onto canvas in specified rect, with specified ratio
-     * centered on head
-     */
-    private fun drawGameField(c: Canvas, viewWidth: Int, viewHeight: Int) {
-
-    }
-
-    val head: IBodySegment get() = bodySegmentsList.last
-
-    fun drawGameScreen(c: Canvas, viewWidth: Int, viewHeight: Int) {
-        c.drawColor(0xff3affbd.toInt())
-
-        val R_HEAD = Game.R_HEAD.toFloat()
-        // fit width to screen: pix to logic
-        val ratio: Float = (viewWidth / fieldWidth)
-
-        c.drawRect(0f, 0f, (fieldWidth * ratio), (fieldHeight * ratio), Paints.linePaint)
-
-        for (obj in fieldObjectList) {
-            drawGameObject(c, obj, ratio.toDouble())
-        }
-
-        for (segment in bodySegmentsList) {
-            val x0 = (segment.startX * ratio)
-            val y0 = (segment.startY * ratio)
-            val x1 = (segment.endX * ratio)
-            val y1 = (segment.endY * ratio)
-            c.drawLine(x0, y0, x1, y1, Paints.bodyPaint)
-            c.drawCircle(x0, y0, R_HEAD / 2 * ratio, Paints.bodyPaint)
-        }
-
-        val headX = head.endX * ratio
-        val headY = head.endY * ratio
-        // drawGameFrame head with direction as
-        c.drawCircle(headX, headY, R_HEAD * ratio, Paints.headPaint)
-        c.drawLine(
-            headX, headY, (headX + R_HEAD * ratio * head.alphaCosinus),
-            (headY + R_HEAD * ratio * head.alphaSinus), Paints.linePaint
-        )
-
-        c.drawText(dbgStatus, 0f, fieldHeight * ratio + Paints.linePaint.textSize, Paints.linePaint)
-
-        // rotation ruler
-        // along screen bottom
-        val rcHeight = viewWidth / 20
-        val rcSegmentWidth = viewWidth / 3f
-        val deltaAngle = getEffectiveRotateAngle()
-        val segColorActive: Int = 0xff0000ff.toInt()
-        val segColorInactive: Int = 0xff00ccff.toInt()
-
-        val rcRect = RectF(0f, (viewHeight - rcHeight).toFloat(), rcSegmentWidth, viewHeight.toFloat())
-        c.drawRect(rcRect, fillPainter.apply { color = if (deltaAngle < 0) segColorActive else segColorInactive })
-
-        rcRect.offset(rcRect.width() * 2, 0f)
-        c.drawRect(rcRect, fillPainter.apply { color = if (deltaAngle > 0) segColorActive else segColorInactive })
-
-        // drawGameFrame circle on distance from center
-        val rotateBallRadius = rcHeight * 0.35f
-        var rotateBallX = (viewWidth / 2 - lastRoll / TILT_THRESHOLD * rcSegmentWidth / 2).toFloat()
-
-        if(rotateBallX < rotateBallRadius){
-            rotateBallX = rotateBallRadius
-        } else if (rotateBallX > viewWidth - rotateBallRadius) {
-            rotateBallX = viewWidth - rotateBallRadius
-        }
-
-        c.drawCircle(rotateBallX,
-            (viewHeight - rcHeight / 2).toFloat(), rotateBallRadius, fillPainter.apply { color = 0xff000000.toInt() })
-    }
+    // val head: IBodySegment get() = bodySegmentsImpl.last
 
 
     /**
@@ -334,23 +161,25 @@ class Game(private val addObstacles: Boolean = true) {
         val deltaAngle = getEffectiveRotateAngle(gameControlImpulse)
 
         processBody(step, deltaAngle * step)
-        dbgStatus = "${bodySegmentsList.size}"
+        val bodySegmentsImpl = sceneImpl.bodySegmentsImpl
+        dbgStatus = "${bodySegmentsImpl.size}"
 
-        val last = bodySegmentsList.last
+        val last = bodySegmentsImpl.last
 
-        if (last.dblEndX < 0 || last.dblEndX >= fieldWidth || last.dblEndY < 0 || last.dblEndY >= fieldHeight) {
-            init()
+        if (last.dblEndX < 0 || last.dblEndX >= scene.fieldWidth || last.dblEndY < 0 || last.dblEndY >= scene.fieldHeight) {
+            firstLevel()
             tickResult = TickResult.INITGAME
 
         } else {
+            val fieldObjectList = (scene as GameScene).fieldObjectsImpl
             val collidingObj = fieldObjectList.firstOrNull { it.isColliding(last.dblEndX, last.dblEndY, R_HEAD) }
 
             when(collidingObj?.type) {
-                GameObject.Type.OBSTACLE -> {
-                    init()
+                IFieldObject.Type.OBSTACLE -> {
+                    firstLevel()
                     tickResult = TickResult.INITGAME
                 }
-                GameObject.Type.PICKABLE -> {
+                IFieldObject.Type.PICKABLE -> {
                     fieldObjectList.remove(collidingObj)
                     pendingLength += collidingObj.radius * 2
                     tickResult = TickResult.CONSUME
@@ -365,14 +194,15 @@ class Game(private val addObstacles: Boolean = true) {
 
     // moves a body along the
     private fun processBody(step: Double, deltaAngle: Double) {
+        val segments = sceneImpl.bodySegmentsImpl
 
         // have at least one - extend or add it, then subtract from tail
         if (deltaAngle == 0.0) {
-            bodySegmentsList.last.extend(step)
+            segments.last.extend(step)
         } else {
-            bodySegmentsList.addLast(BodySegment(
-                bodySegmentsList.last.dblEndX, bodySegmentsList.last.dblEndY, bodySegmentsList.last.dblEndZ,
-                bodySegmentsList.last.angle + deltaAngle, step))
+            with(segments.last) {
+                segments.addLast(BodySegment(dblEndX, dblEndY, dblEndZ,angle + deltaAngle, step))
+            }
         }
 
         pendingLength -= step
@@ -381,59 +211,83 @@ class Game(private val addObstacles: Boolean = true) {
         if (pendingLength < 0) {
             pendingLength = -pendingLength
 
-            while(bodySegmentsList.first.dblLength <= pendingLength) {
-                pendingLength -= bodySegmentsList.first.dblLength
-                bodySegmentsList.removeFirst()
+            while(segments.first.dblLength <= pendingLength) {
+                pendingLength -= segments.first.dblLength
+                segments.removeFirst()
             }
 
             if(pendingLength > 0) {
                 // partial remove of first element
-                bodySegmentsList.first.cutTail(pendingLength)
+                segments.first.cutTail(pendingLength)
             }
 
             pendingLength = 0.0
         }
     }
 
-}
 
-interface IBodySegment {
-    val startX: Float
-    val startY: Float
-    val startZ: Float
 
-    val endX: Float
-    val endY: Float
-    val endZ: Float
 
-    val length: Float
 
-    val alpha: Float
-    val alphaSinus: Float
-    val alphaCosinus: Float
+    private class GameScene(private val level: Level) : IGameScene {
+        internal val bodySegmentsImpl = LinkedList<BodySegment>()
+        override val bodySegments: Collection<BodySegment> = bodySegmentsImpl
 
-    val beta: Float
-    val betaSinus: Float
-    val betaCosinus: Float
-}
+        override val fieldWidth: Float = level.fieldWidth.toFloat()
+        override val fieldHeight: Float = level.fieldHeight.toFloat()
 
-/**
- * appends a segment to the list
- */
-fun MutableList<IBodySegment>.append(
-    angle: Double,
-    length: Double,
-    angleRelative: Boolean = true
-): MutableList<IBodySegment> {
+        val fieldObjectsImpl = mutableListOf<GameObject>()
+        override val fieldObjects = fieldObjectsImpl as Iterable<IFieldObject>
 
-    val last = this.last()
-    this.add(
-        BodySegment(
-            last.endX.toDouble(), last.endY.toDouble(), last.endZ.toDouble(),
-            angle + if(angleRelative) last.alpha else 0f, length
-        )
-    )
-    return this
+        init {
+            loadLevel()
+        }
+
+        /**
+         * seeds field with initial
+         */
+        private fun loadLevel() {
+            // body
+            bodySegmentsImpl.clear()
+            bodySegmentsImpl.addFirst(BodySegment(FIELD_SAFEMARGIN / 2, FIELD_SAFEMARGIN / 2, R_HEAD, 0.0, R_HEAD * 4))
+
+            // field objects
+
+            fieldObjectsImpl.clear()
+            // fieldObjectList.addAll(listOf(GameObject(GameObject.Type.PICKABLE, 50.0, 50.0)))
+
+            val fieldWidth = level.fieldWidth
+            val fieldHeight = level.fieldHeight
+
+            for (pair in listOf(
+                Pair(IFieldObject.Type.PICKABLE, level.pickableCount),
+                Pair(IFieldObject.Type.OBSTACLE, level.obstacleCount)
+            )) {
+                val newObjRadius = pair.first.dblRadius
+
+                for (i in 0 until pair.second) {
+                    var tries = 20 // if cannot find a free cell for 20 tries we fail miserably
+                    var objX: Double
+                    var objY: Double
+                    var objPlaced: Boolean
+
+                    do {
+                        objX = Random.nextDouble(FIELD_SAFEMARGIN, fieldWidth - FIELD_SAFEMARGIN)
+                        objY = Random.nextDouble(FIELD_SAFEMARGIN, fieldHeight - FIELD_SAFEMARGIN)
+                        tries--
+                        objPlaced = !fieldObjectsImpl.any() { it.isColliding(objX, objY, newObjRadius) }
+                    } while (!objPlaced && tries > 0)
+
+                    if (!objPlaced) {
+                        throw IllegalArgumentException("Cannot randomly place that much game objects")
+                    }
+
+                    fieldObjectsImpl.add(GameObject(pair.first, objX, objY))
+                }
+            }
+        }
+    }
+
 }
 
 class BodySegment(var dblStartX: Double, var dblStartY: Double, var dblStartZ: Double, val angle: Double, var dblLength: Double) : IBodySegment {
@@ -484,3 +338,4 @@ class BodySegment(var dblStartX: Double, var dblStartY: Double, var dblStartZ: D
         dblStartY += minusLength * angleSinus
     }
 }
+

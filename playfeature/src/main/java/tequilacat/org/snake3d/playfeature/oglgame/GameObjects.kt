@@ -1,20 +1,20 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
 import android.opengl.Matrix
-import tequilacat.org.snake3d.playfeature.Game.GameObject
+import tequilacat.org.snake3d.playfeature.IFieldObject
 import tequilacat.org.snake3d.playfeature.glutils.*
 import kotlin.math.*
 
 
 
 // allow for different drawing approaches
-abstract class AbstractGameObject(val gameObject: GameObject?) : Drawable
+abstract class AbstractGameObject(val gameObject: IFieldObject?) : Drawable
 
 // TODO template class for gameObject, move to Drawables
 abstract class AbstractDrawableGameObject(
     private val geometryPainter: GeometryPainter,
     private val objectContext: ObjectContext,
-    gameObject: GameObject? = null) : AbstractGameObject(gameObject) {
+    gameObject: IFieldObject? = null) : AbstractGameObject(gameObject) {
 
     protected abstract val geometryBuffer: GeometryBuffer
 
@@ -38,7 +38,7 @@ class DrawableGameObject(
     geometryPainter: GeometryPainter,
     primaryColor: FloatArray,
     textureId: Int = -1,
-    gameObject: GameObject? = null
+    gameObject: IFieldObject? = null
 ) : AbstractDrawableGameObject(
     geometryPainter, ObjectContext(primaryColor, textureId), gameObject
 )

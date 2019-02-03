@@ -53,7 +53,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     }
 
     /** vysota v holke - 2 head radiuses */
-    private fun bodyUnit() = (Game.R_HEAD * 2f).toFloat()
+    private fun bodyUnit() = (GameGeometry.R_HEAD * 2f).toFloat()
 
     // positioned according to currently used skybox images
     private val LIGHT_POSITION = floatArrayOf(0f, 100f, 20f, 1f)
@@ -68,7 +68,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
 
     private var controlState: Game.GameControlImpulse = Game.GameControlImpulse.NONE
-    private val game = Game()
+    private val game = Game(debugScene?.addObstacles ?: true)
 
     /** All things to be drawn are stored here */
     private val gameObjects = mutableListOf<AbstractGameObject>()
@@ -83,7 +83,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         AbstractDrawableGameObject(painter, ObjectContext(ObjColors.BODY.rgb, bodyTextureId)) {
 
         // start texture V at bottom lowest point (3 * PI / 2)
-        private val bodyShape = BodyShape(10, Game.R_HEAD.toFloat(), 3 * PI.toFloat() / 2, 1f, 0f)
+        private val bodyShape = BodyShape(10, GameGeometry.R_HEAD.toFloat(), 3 * PI.toFloat() / 2, 1f, 0f)
 
         override lateinit var geometryBuffer: GeometryBuffer
 
@@ -120,13 +120,13 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
     private val pickableGeometry: Geometry = PrimitiveBuilder.makePrism(
         0f, 0f, 0f,
-        bodyUnit() * 2f, Game.GameObject.Type.PICKABLE.radius.toFloat(), 12, true, true)
+        bodyUnit() * 2f, IFieldObject.Type.PICKABLE.radius, 12, true, true)
 
     private val obstacleGeometry: Geometry = PrimitiveBuilder.makePrism(0f, 0f, 0f,
-        bodyUnit() * 1.3f, Game.GameObject.Type.OBSTACLE.radius.toFloat(), 12, true, true)
+        bodyUnit() * 1.3f, IFieldObject.Type.OBSTACLE.radius, 12, true, true)
 
     private var headGeometry: Geometry = PrimitiveBuilder.makePrism(0f, 0f, 0f,
-        bodyUnit(), Game.R_HEAD.toFloat(), 6, true, true)
+        bodyUnit(), GameGeometry.R_HEAD.toFloat(), 6, true, true)
 
     private lateinit var obstacleGeometryBuffer: GeometryBuffer
     private lateinit var pickableGeometryBuffer: GeometryBuffer
@@ -148,7 +148,6 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     private fun initOnSurfaceCreated() {
         game.running = true
 
-        //headTextureId = loadTexture(context, R.drawable.takyr_floor)
         obstacleTextureId = loadTexture(context, R.raw.cokecan_graphics)
         pickableTextureId = loadTexture(context, R.raw.guinnes)
         floorTileTextureId = loadTexture(context, R.raw.oldtiles)
@@ -192,7 +191,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             floorGeometryBuffer.release()
         }
 
-        floorGeometryBuffer = GeometryBuffer(makeFloor(game.fieldWidth, game.fieldHeight, bodyUnit() * 3, true))
+        floorGeometryBuffer = GeometryBuffer(makeFloor(game.scene.fieldWidth, game.scene.fieldHeight, bodyUnit() * 3, true))
         gameObjects.add(
             DrawableGameObject(
                 floorGeometryBuffer,
@@ -204,13 +203,13 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
 
         // add game objects
-        gameObjects.addAll(game.fieldObjects.map {
+        gameObjects.addAll(game.scene.fieldObjects.map {
             DrawableGameObject(
-                if (it.type == Game.GameObject.Type.OBSTACLE) obstacleGeometryBuffer else pickableGeometryBuffer,
+                if (it.type == IFieldObject.Type.OBSTACLE) obstacleGeometryBuffer else pickableGeometryBuffer,
                 texturePainter,
-                if (it.type == Game.GameObject.Type.OBSTACLE) ObjColors.OBSTACLE.rgb else ObjColors.PICKABLE.rgb,
+                if (it.type == IFieldObject.Type.OBSTACLE) ObjColors.OBSTACLE.rgb else ObjColors.PICKABLE.rgb,
                 gameObject = it,
-                textureId = if (it.type == Game.GameObject.Type.OBSTACLE) obstacleTextureId else pickableTextureId
+                textureId = if (it.type == IFieldObject.Type.OBSTACLE) obstacleTextureId else pickableTextureId
             ).apply { position(it.centerX.toFloat(), it.centerY.toFloat(), 0f, 0f) }
         })
 
@@ -223,12 +222,12 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         if (debugScene != null) {
             bodyShapeObject.update(debugScene.bodySegments)
         } else {
-            bodyShapeObject.update(game.bodySegments)
+            bodyShapeObject.update(game.scene.bodySegments)
         }
     }
 
     private fun updateConsumables() {
-        val gameObjSet = game.fieldObjects.toSet()
+        val gameObjSet = game.scene.fieldObjects.toSet()
         gameObjects.retainAll {  it.gameObject == null || gameObjSet.contains(it.gameObject) }
     }
 
@@ -269,7 +268,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         } else {
 
             val eyeH = bodyUnit() * 3
-            val head = game.head
+            val head = game.scene.bodySegments.last()
 
             val cx: Float = head.endX - head.alphaCosinus * eyeRearDistance
             val cy: Float = head.endY - head.alphaSinus * eyeRearDistance

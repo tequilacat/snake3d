@@ -125,6 +125,8 @@ class GameView(context: Context?) : SurfaceView(context), SurfaceHolder.Callback
     private var viewWidth: Int = 0
     private var viewHeight: Int = 0
 
+    private val gamePainter = Game2dPainter()
+
     init {
         // focusable = true - min level > 15
         holder.addCallback(this)
@@ -197,7 +199,8 @@ class GameView(context: Context?) : SurfaceView(context), SurfaceHolder.Callback
         super.draw(canvas)
 
         if (canvas != null){
-            game.drawGameScreen(canvas, viewWidth, viewHeight)
+            gamePainter.drawGameScreen(canvas, game.scene, viewWidth, viewHeight,
+                0f,0f,0f)
         }
 
 //        val paintTime = (System.nanoTime() - t0)/1000000 // in ms
@@ -206,7 +209,8 @@ class GameView(context: Context?) : SurfaceView(context), SurfaceHolder.Callback
 
     override public fun onDraw(canvas: Canvas?) {
         if (canvas != null){
-            game.drawGameScreen(canvas, viewWidth, viewHeight)
+            gamePainter.drawGameScreen(canvas, game.scene, viewWidth, viewHeight,
+                0f,0f,0f)
         }
     }
 }
