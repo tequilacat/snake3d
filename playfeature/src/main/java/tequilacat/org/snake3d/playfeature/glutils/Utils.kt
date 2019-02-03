@@ -4,6 +4,7 @@ import android.content.Context
 import java.nio.*
 import kotlin.math.*
 
+fun Float.f(digits: Int) = java.lang.String.format("%.${digits}f", this)
 
 const val BYTES_PER_SHORT = 2
 const val BYTES_PER_FLOAT = 4

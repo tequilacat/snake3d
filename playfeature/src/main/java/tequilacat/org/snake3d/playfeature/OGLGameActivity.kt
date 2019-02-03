@@ -46,8 +46,6 @@ class OGLGameActivity : AppCompatActivity() {
 
         private var viewWidth = 0
         private var viewHeight = 0
-        private var lastX = 0f
-        private var lastY = 0f
 
         override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
             super.onSizeChanged(w, h, oldw, oldh)
@@ -56,29 +54,7 @@ class OGLGameActivity : AppCompatActivity() {
         }
 
         override fun onTouchEvent(event: MotionEvent?): Boolean {
-            val x = event!!.x
-            val y = event.y
-
-            val relativeX = if (y > viewHeight / 10) null else (x / viewWidth.toFloat())
-
-            if (event.action == MotionEvent.ACTION_UP
-                || event.action == MotionEvent.ACTION_POINTER_UP) {
-
-                // release
-                mRenderer.updateControls(relativeX,null, true)
-
-            } else if (event.action == MotionEvent.ACTION_DOWN
-                || event.action == MotionEvent.ACTION_POINTER_DOWN) {
-                // down
-
-                lastX = x
-                lastY = y
-                mRenderer.updateControls(null,0f, true)
-
-            } else if (event.action == MotionEvent.ACTION_MOVE) {
-                mRenderer.updateControls(relativeX,(x - lastX) / viewWidth, false)
-            }
-
+            mRenderer.inputController.processTouchEvent(event!!)
             return true
         }
     }

@@ -11,7 +11,6 @@ import tequilacat.org.snake3d.playfeature.glutils.*
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 import kotlin.math.PI
-import kotlin.math.abs
 
 /**
  * stores opengl data from the game
@@ -21,7 +20,6 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     // override Renderer
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-        controlState = Game.GameControlImpulse.NONE
         initOnSurfaceCreated()
     }
 
@@ -36,7 +34,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         drawGameFrame()
         val curMs = SystemClock.uptimeMillis()
         //val time = (System.nanoTime() - stt)/ 1_000_000.0
-        Log.d("render", "MS Since last drawGameFrame: ${curMs - lastDrawMs}, drawn within ${curMs - preDrawMs}")
+//        Log.d("render", "MS Since last drawGameFrame: ${curMs - lastDrawMs}, drawn within ${curMs - preDrawMs}")
         lastDrawMs = curMs
     }
 
@@ -67,8 +65,8 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     private val debugScene: DebugScene? = null
 
 
-    private var controlState: Game.GameControlImpulse = Game.GameControlImpulse.NONE
-    private val game = Game(debugScene?.addObstacles ?: true)
+    //private var controlState: Game.GameControlImpulse = Game.GameControlImpulse.NONE
+    private val game = Game(false) // debugScene?.addObstacles ?: true)
 
     /** All things to be drawn are stored here */
     private val gameObjects = mutableListOf<AbstractGameObject>()
@@ -109,10 +107,10 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
             val time4 = SystemClock.uptimeMillis()
 
-            Log.d(
-                "render",
-                "body update: ${time1 - time0} / ${time2 - time1} / ${time3 - time2} / ${time4 - time3}"
-            )
+//            Log.d(
+//                "render",
+//                "body update: ${time1 - time0} / ${time2 - time1} / ${time3 - time2} / ${time4 - time3}"
+//            )
         }
     }
 
@@ -152,6 +150,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         pickableTextureId = loadTexture(context, R.raw.guinnes)
         floorTileTextureId = loadTexture(context, R.raw.oldtiles)
         bodyTextureId = loadTexture(context, R.raw.snake_yellowbrown)
+//        bodyTextureId = loadTexture(context, R.raw.snake_grayscale)
 
         // no need to recreate
         phongPainter = ShadedPainter(SemiPhongProgram(context))
@@ -171,7 +170,6 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         glEnable(GL_CULL_FACE)
 
         createLevel()
-        updateControls(null,null, false)
     }
 
     private fun freeResources() {
@@ -231,31 +229,6 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         gameObjects.retainAll {  it.gameObject == null || gameObjSet.contains(it.gameObject) }
     }
 
-    /**
-     * notifies renderer that user pressed or dragged finger horizontally,
-     * -1f to 1f, where 1f is screen width dragged from original touch.
-     * Null is passed when user has released pointer.
-     * left is negative.
-     */
-    fun updateControls(relativeXPos: Float?, horizontalDrag: Float?, startGesture: Boolean) {
-        controlState = when {
-            horizontalDrag == null || abs(horizontalDrag) < 0.1 ->
-                Game.GameControlImpulse.NONE
-            horizontalDrag < 0.1 ->
-                Game.GameControlImpulse.LEFT
-            else ->
-                Game.GameControlImpulse.RIGHT
-        }
-
-//        if (relativeXPos != null) {
-//            if (relativeXPos < 0.3) {
-//                nearPlaneDist /= 1.1f
-//            } else if (relativeXPos > 0.7) {
-//                nearPlaneDist *= 1.1f
-//            }
-//            Log.d("render", "Change near plane dist to $nearPlaneDist")
-//        }
-    }
 
     private fun adjustViewAngle() {
         if(debugScene != null) {
@@ -293,16 +266,19 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
     private fun initViewOnSurfaceChanged(width: Int, height: Int) {
         glViewport(0, 0, width, height)
 
+        inputController.initialize(width, height)
+        inputController.resetInput()
+
         val ratio = width.toFloat() / height
-        // this projection matrix is applied to object coordinates
-        // in the onDrawFrame() method
         Matrix.frustumM(drawContext.projectionMatrix, 0, -ratio, ratio, -1f, 1f, nearPlaneDist, 200f)
     }
 
+    val inputController = InputController()
+
     private fun drawGameFrame() {
-        // tick
-        val tickResult = if(debugScene == null) game.tick(controlState) else Game.TickResult.NONE
-//        Log.d("render", "Tick result: $tickResult")
+        val tickResult = if (debugScene == null) {
+            game.tick(inputController.computeImpulse(game.scene.bodySegments.last().alpha))
+        } else Game.TickResult.NONE
 
         when(tickResult) {
             Game.TickResult.CONSUME -> {

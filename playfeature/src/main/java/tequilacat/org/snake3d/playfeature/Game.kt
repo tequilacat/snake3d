@@ -101,11 +101,11 @@ class Game(private val addObstacles: Boolean = true) {
     private fun initLevel(levelIndex: Int) {
         currentLevelIndex = levelIndex
         sceneImpl = GameScene(levels[levelIndex])
+
+        if(!addObstacles) {
+            sceneImpl.fieldObjectsImpl.clear()
+        }
     }
-
-
-
-//    fun Float.f(digits: Int) = java.lang.String.format("%.${digits}f", this)
 
     /// updates state controlled by device position
     fun updatePositionalControls(azimuth: Float, pitch: Float, roll: Float) {
@@ -249,7 +249,9 @@ class Game(private val addObstacles: Boolean = true) {
         private fun loadLevel() {
             // body
             bodySegmentsImpl.clear()
-            bodySegmentsImpl.addFirst(BodySegment(FIELD_SAFEMARGIN / 2, FIELD_SAFEMARGIN / 2, R_HEAD, 0.0, R_HEAD * 4))
+            //bodySegmentsImpl.addFirst(BodySegment(FIELD_SAFEMARGIN / 2, FIELD_SAFEMARGIN / 2, R_HEAD, 0.0, R_HEAD * 4))
+            // TODO debug location of body
+            bodySegmentsImpl.addFirst(BodySegment(level.fieldWidth / 2, level.fieldHeight / 2, R_HEAD, 0.0, R_HEAD * 4))
 
             // field objects
 
