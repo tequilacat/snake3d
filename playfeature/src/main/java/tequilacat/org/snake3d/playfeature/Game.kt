@@ -249,9 +249,10 @@ class Game(private val addObstacles: Boolean = true) {
         private fun loadLevel() {
             // body
             bodySegmentsImpl.clear()
-            //bodySegmentsImpl.addFirst(BodySegment(FIELD_SAFEMARGIN / 2, FIELD_SAFEMARGIN / 2, R_HEAD, 0.0, R_HEAD * 4))
-            // TODO debug location of body
-            bodySegmentsImpl.addFirst(BodySegment(level.fieldWidth / 2, level.fieldHeight / 2, R_HEAD, 0.0, R_HEAD * 4))
+            bodySegmentsImpl.addFirst(BodySegment(FIELD_SAFEMARGIN / 2, FIELD_SAFEMARGIN / 2, R_HEAD, 0.0, R_HEAD * 4))
+
+            // debug location of body
+            //bodySegmentsImpl.addFirst(BodySegment(level.fieldWidth / 2, level.fieldHeight / 2, R_HEAD, 0.0, R_HEAD * 4))
 
             // field objects
 

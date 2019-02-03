@@ -63,7 +63,7 @@ class BodyShape(
      */
     fun update(segments: Collection<IBodySegment>) {
         allocateArrays(segments.size)
-        rebuildIndexes(segments)
+        rebuildIndexes(segments.size + 2)
         rebuildVertexes(segments)
 
         //val stNormals = SystemClock.uptimeMillis()
@@ -118,7 +118,7 @@ class BodyShape(
         }
     }
 
-    private fun rebuildIndexes(bodySegments: Collection<IBodySegment>) {
+    private fun rebuildIndexes(ringsCount: Int) {
         // generate standard triangle grid
         var curVertexIndex = 0
 
@@ -131,7 +131,7 @@ class BodyShape(
 
         var startVertex = 1
 
-        for (segIndex in 0 until bodySegments.size + 2) {
+        for (segIndex in 0 until ringsCount) {
             for (faceIndex in 0 until segmentFaceCount) {
                 val i1 = startVertex + faceIndex
                 val i2 = i1 + segmentFaceCount
@@ -165,7 +165,7 @@ class BodyShape(
                         ringU: Float) {
         val sinus = sin(angle)
         val cosinus = cos(angle)
-        var index = atIndex // 1 + ringIndex * segmentFaceCount * vertexFloatStride
+        var index = atIndex
         val dV = 1f / segmentFaceCount
         var currV = 0f
 

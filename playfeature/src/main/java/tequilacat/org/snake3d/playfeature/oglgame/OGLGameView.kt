@@ -66,7 +66,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
 
     //private var controlState: Game.GameControlImpulse = Game.GameControlImpulse.NONE
-    private val game = Game(false) // debugScene?.addObstacles ?: true)
+    private val game = Game(debugScene?.addObstacles ?: true)
 
     /** All things to be drawn are stored here */
     private val gameObjects = mutableListOf<AbstractGameObject>()
@@ -81,7 +81,11 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         AbstractDrawableGameObject(painter, ObjectContext(ObjColors.BODY.rgb, bodyTextureId)) {
 
         // start texture V at bottom lowest point (3 * PI / 2)
-        private val bodyShape = BodyShape(10, GameGeometry.R_HEAD.toFloat(), 3 * PI.toFloat() / 2, 1f, 0f)
+        private val bodyShape = BodyShape(10, GameGeometry.R_HEAD.toFloat(), 3 * PI.toFloat() / 2,
+            //1/(2 * PI / GameGeometry.R_HEAD).toFloat(),
+            0.2f, // for yellow brown
+            //0.5f, // good for grayscale
+            0f)
 
         override lateinit var geometryBuffer: GeometryBuffer
 
@@ -118,17 +122,13 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
     private val pickableGeometry: Geometry = PrimitiveBuilder.makePrism(
         0f, 0f, 0f,
-        bodyUnit() * 2f, IFieldObject.Type.PICKABLE.radius, 12, true, true)
+        IFieldObject.Type.PICKABLE.radius * 4, IFieldObject.Type.PICKABLE.radius, 12, true, true)
 
     private val obstacleGeometry: Geometry = PrimitiveBuilder.makePrism(0f, 0f, 0f,
-        bodyUnit() * 1.3f, IFieldObject.Type.OBSTACLE.radius, 12, true, true)
-
-    private var headGeometry: Geometry = PrimitiveBuilder.makePrism(0f, 0f, 0f,
-        bodyUnit(), GameGeometry.R_HEAD.toFloat(), 6, true, true)
+        IFieldObject.Type.PICKABLE.radius * 3, IFieldObject.Type.OBSTACLE.radius, 12, true, true)
 
     private lateinit var obstacleGeometryBuffer: GeometryBuffer
     private lateinit var pickableGeometryBuffer: GeometryBuffer
-    private lateinit var headGeometryBuffer: GeometryBuffer
     private lateinit var floorGeometryBuffer: GeometryBuffer
 
     private lateinit var phongPainter: GeometryPainter
@@ -150,7 +150,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         pickableTextureId = loadTexture(context, R.raw.guinnes)
         floorTileTextureId = loadTexture(context, R.raw.oldtiles)
         bodyTextureId = loadTexture(context, R.raw.snake_yellowbrown)
-//        bodyTextureId = loadTexture(context, R.raw.snake_grayscale)
+//        bodyTextureId = loadTexture(context, R.raw.snake_grayscale_hires)
 
         // no need to recreate
         phongPainter = ShadedPainter(SemiPhongProgram(context))
@@ -160,7 +160,6 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
         // build VBO buffers for head and obstacles- in onSurfaceCreated old buffers should be freed
         obstacleGeometryBuffer = GeometryBuffer(obstacleGeometry)
-        headGeometryBuffer = GeometryBuffer(headGeometry)
         pickableGeometryBuffer = GeometryBuffer(pickableGeometry)
 
         glClearColor(ObjColors.SKY.rgb[0], ObjColors.SKY.rgb[1], ObjColors.SKY.rgb[2], 1f)
