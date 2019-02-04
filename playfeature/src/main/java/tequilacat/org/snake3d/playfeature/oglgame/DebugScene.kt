@@ -16,7 +16,7 @@ class DebugScene {
     // when not empty defines body shape
     val bodySegments1 =
         mutableListOf<IBodySegment>(
-            BodySegment(30.0, 4.0, 1.0, PI/12, 0.47)
+            BodySegment(30.0, 4.0, 1.0, PI/12, 0.47, 0.0)
         ).apply {
             (1..96).forEach {
                 append(PI/12, 0.47, true)
@@ -27,7 +27,7 @@ class DebugScene {
         mutableListOf<IBodySegment>(
             BodySegment(
                 7.0, 8.0, 10.0,
-                PI/6, 2.0))
+                PI / 6, 0.0, 2.0))
             .append(PI/4, 2.0, true)
             .append(PI/4, 2.0, true)
             .append(PI/4, 2.0, true)
