@@ -7,19 +7,21 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
+interface IBodyShape {
+    val geometry: Geometry
+    fun update(segments: Collection<IBodySegment>)
+}
+
 /**
  * @param startAngle at which angle section vertex iteration starts
  * @param uPerLengthUnit how much U per 1.0 of run length
  * @param vStart texture V at angle 0
  */
-class BodyShape(
-    val segmentFaceCount: Int, private val bodyRadius: Float,
+abstract class AbstractBodyShape(
+    val segmentFaceCount: Int, protected val bodyRadius: Float,
     private val startAngle: Float,
-    private val uPerLengthUnit: Float, private val vStart: Float
-) {
-
-    // always even count
-    private val vertexFloatStride = 8
+    protected val uPerLengthUnit: Float, private val vStart: Float
+) : IBodyShape {
 
     private val segmentAngleSinCos = Array(segmentFaceCount) {
         Pair(
@@ -29,17 +31,20 @@ class BodyShape(
     }
 
     // last generated geometry
-    lateinit var geometry: Geometry private set
+    private lateinit var geom: Geometry
+    override val geometry get() = geom
+
+    protected val vertexFloatStride = 8
 
     // some safe guesses
-    private var vertexes: FloatArray = FloatArray(1000)
+    protected var vertexes: FloatArray = FloatArray(1000)
     private var indexes: ShortArray = ShortArray(2000)
     private var indexCount = 0
     private var vertexCount = 0
 
-    private fun allocateArrays(segmentCount: Int) {
+    private fun allocateArrays(ringCount: Int) {
         // allocate vertexes
-        vertexCount = (segmentFaceCount * (segmentCount + 3) + 2)
+        vertexCount = (segmentFaceCount * ringCount + 2)
         val vertexCoordCount = vertexCount * vertexFloatStride
 
         if(vertexes.size < vertexCoordCount) {
@@ -49,7 +54,7 @@ class BodyShape(
 
         // allocate indexes
         // 2 triangle each of 3 vert for each face of a segment
-        indexCount = (segmentCount + 3) * segmentFaceCount * 2 * 3
+        indexCount = ringCount * segmentFaceCount * 2 * 3
 
         // alloc in advance
         if(indexes.size < indexCount) {
@@ -58,12 +63,14 @@ class BodyShape(
         }
     }
 
-    /**
-     *
-     */
-    fun update(segments: Collection<IBodySegment>) {
-        allocateArrays(segments.size)
-        rebuildIndexes(segments.size + 2)
+    abstract fun computeRingCount(segments: Collection<IBodySegment>) : Int
+
+    protected abstract fun rebuildVertexes(bodySegments: Collection<IBodySegment>)
+
+    override fun update(segments: Collection<IBodySegment>) {
+        val ringCount = computeRingCount(segments)
+        allocateArrays(ringCount + 1)
+        rebuildIndexes(ringCount)
         rebuildVertexes(segments)
 
         //val stNormals = SystemClock.uptimeMillis()
@@ -71,7 +78,7 @@ class BodyShape(
         //val stNormals1 = SystemClock.uptimeMillis()
         //Log.d("perf", "Segments: ${segments.size}, Normals: $indexCount, time: ${stNormals1 - stNormals} ms")
 
-        geometry = Geometry(
+        geom = Geometry(
             vertexes, vertexCount,
             indexes, indexCount,
             hasNormals = true,
@@ -161,7 +168,7 @@ class BodyShape(
         }
     }
 
-    private fun addRing(atIndex: Int, cx: Float, cy: Float, cz: Float, radius: Float, angle: Float,
+    protected fun addRing(atIndex: Int, cx: Float, cy: Float, cz: Float, radius: Float, angle: Float,
                         ringU: Float) {
         val sinus = sin(angle)
         val cosinus = cos(angle)
@@ -184,7 +191,14 @@ class BodyShape(
         }
     }
 
-    private fun rebuildVertexes(bodySegments: Collection<IBodySegment>) {
+}
+
+class BodyShape(segmentFaceCount: Int, bodyRadius: Float, startAngle: Float, uPerLengthUnit: Float, vStart: Float) :
+    AbstractBodyShape(segmentFaceCount, bodyRadius, startAngle, uPerLengthUnit, vStart) {
+
+    override fun computeRingCount(segments: Collection<IBodySegment>) = segments.size + 2
+
+    override fun rebuildVertexes(bodySegments: Collection<IBodySegment>) {
         val endRadius = bodyRadius
         val endCorrLen = bodyRadius * 0.7f
         val corrRadius = bodyRadius * 0.7f

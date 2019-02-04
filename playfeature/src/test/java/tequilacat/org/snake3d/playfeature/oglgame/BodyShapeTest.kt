@@ -372,4 +372,14 @@ class BodyShapeTest {
         assertEquals(0.5f, geometry.vertexes[4])
         assertEquals(0.5f, geometry.vertexes[geometry.vertexCount*geometry.vertexFloatStride - 4])
     }
+
+
+
+    // TODO Test natural shape generation
+    /*
+    when tailLenth > totalLength - headR = HEAD_R
+      straight: tail, 1 ring (of r = bodyRadius), nose (at center of nose ring)
+
+     */
+
 }

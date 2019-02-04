@@ -85,7 +85,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             //1/(2 * PI / GameGeometry.R_HEAD).toFloat(),
             0.2f, // for yellow brown
             //0.5f, // good for grayscale
-            0f)
+            0f) as IBodyShape
 
         override lateinit var geometryBuffer: GeometryBuffer
 
