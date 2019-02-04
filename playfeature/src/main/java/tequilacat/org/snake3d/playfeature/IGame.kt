@@ -24,7 +24,7 @@ interface IGameScene {
     val fieldHeight: Float
 
     val fieldObjects: Iterable<IFieldObject>
-    val bodySegments: Collection<BodySegment>
+    val bodySegments: Collection<BodySegment> // TODO replace bodySegments with BodyModel
 }
 
 interface IBodySegment {
@@ -37,6 +37,7 @@ interface IBodySegment {
     val endZ: Float
 
     val length: Float
+    val endRadius: Float
 
     val alpha: Float
     val alphaSinus: Float
@@ -60,7 +61,7 @@ fun MutableList<IBodySegment>.append(
     this.add(
         BodySegment(
             last.endX.toDouble(), last.endY.toDouble(), last.endZ.toDouble(),
-            angle + if(angleRelative) last.alpha else 0f, length
+            angle + if(angleRelative) last.alpha else 0f, 0.0, length
         )
     )
     return this

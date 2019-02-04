@@ -13,6 +13,7 @@ import kotlin.math.sin
 class BodyShapeTest {
 
     private val testRadius = 1f
+    private val beta = 0.0
 
     private fun bodyShape() = BodyShape(4, testRadius,0f,1f, 0f)
 
@@ -24,7 +25,7 @@ class BodyShapeTest {
 
     private fun singleSegmentGeom() = bodyShape()
         .run {
-            update(listOf(BodySegment(0.0, 0.0, 0.0, 0.0, 1.0)))
+            update(listOf(BodySegment(0.0, 0.0, 0.0, 0.0, beta, 1.0)))
             geometry
         }
 
@@ -67,7 +68,7 @@ class BodyShapeTest {
      */
     @Test
     fun `index array reallocation`() {
-        val segments = mutableListOf(BodySegment(0.0, 0.0, 0.0, 0.0, 1.0))
+        val segments = mutableListOf(BodySegment(0.0, 0.0, 0.0, 0.0, beta, 1.0))
 
         val builder = bodyShape()
         builder.update(segments)
@@ -99,7 +100,7 @@ class BodyShapeTest {
     fun `vertex ring start`() {
         val nFaces = 5
         val segments = mutableListOf<IBodySegment>(
-            BodySegment(0.0, 0.0, 0.0, 0.0, 10.0))
+            BodySegment(0.0, 0.0, 0.0, 0.0, beta, 10.0))
             .append(PI / 4, 10.0, true)
             .append(PI / 4, 10.0, true)
 
@@ -124,7 +125,7 @@ class BodyShapeTest {
      */
     @Test
     fun `vertex array reallocation`() {
-        val segments = mutableListOf(BodySegment(0.0, 0.0, 0.0, 0.0, 1.0))
+        val segments = mutableListOf(BodySegment(0.0, 0.0, 0.0, 0.0, beta, 1.0))
 
         val builder =  bodyShape()
         builder.update(segments)
@@ -177,7 +178,7 @@ class BodyShapeTest {
     @Test
     fun `vertex coordinates`() {
         val segments = mutableListOf(BodySegment(0.0, 0.0, testRadius.toDouble(),
-            0.0, 10.0))
+            0.0, beta, 10.0))
 
         val builder =  bodyShape()
         builder.update(segments)
@@ -193,7 +194,7 @@ class BodyShapeTest {
                 segments.first().dblEndX,
                 segments.first().dblEndY,
                 segments.first().dblEndZ,
-                PI / 4,
+                PI / 4, beta,
                 10.0
             )
         )
@@ -242,7 +243,7 @@ class BodyShapeTest {
     fun normals() {
         val geometry =  bodyShape().run {
             update(mutableListOf<IBodySegment>(
-                BodySegment(0.0, 0.0, testRadius.toDouble(), 0.0, 10.0))
+                BodySegment(0.0, 0.0, testRadius.toDouble(), 0.0, beta, 10.0))
                 .append(PI / 4, 10.0, true)
             )
             geometry
@@ -282,7 +283,7 @@ class BodyShapeTest {
             update(mutableListOf<IBodySegment>(
                 BodySegment(
                     10.0, 4.0, 1.0,
-                    PI/4, 2.0)))
+                    PI/4, beta, 2.0)))
             geometry
         }
         val v1 = getCoords(geom1, (0..12))
@@ -291,7 +292,7 @@ class BodyShapeTest {
             update(mutableListOf<IBodySegment>(
                 BodySegment(
                     10.0, 4.0, 1.0,
-                    PI/4, 2.0))
+                    PI/4, beta, 2.0))
                 .append(PI/4, 2.0, false))
             geometry
         }
@@ -309,7 +310,7 @@ class BodyShapeTest {
         val uPer1Length = 0.1f // 1
         val nFaceSegments = 4
         val segment = mutableListOf<IBodySegment>(
-            BodySegment(0.0, 0.0, 0.0, 0.0, 1.0))
+            BodySegment(0.0, 0.0, 0.0, 0.0, beta, 1.0))
             .append(PI / 4, 0.3, true)
             .append(-PI / 4, 1.0, true)
 
@@ -354,7 +355,7 @@ class BodyShapeTest {
         val nFaceSegments = 10
         val geometry = BodyShape(nFaceSegments, 0.5f, 3 * PI.toFloat() / 2, 1f, 0f).run {
             update(mutableListOf<IBodySegment>(
-                BodySegment(0.0, 0.0, 0.0, 0.0, 1.0)
+                BodySegment(0.0, 0.0, 0.0, 0.0, beta, 1.0)
             ));geometry
         }
 

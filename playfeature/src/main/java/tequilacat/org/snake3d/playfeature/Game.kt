@@ -201,7 +201,7 @@ class Game(private val addObstacles: Boolean = true) {
             segments.last.extend(step)
         } else {
             with(segments.last) {
-                segments.addLast(BodySegment(dblEndX, dblEndY, dblEndZ,angle + deltaAngle, step))
+                segments.addLast(BodySegment(dblEndX, dblEndY, dblEndZ, angle + deltaAngle, 0.0, step))
             }
         }
 
@@ -249,7 +249,8 @@ class Game(private val addObstacles: Boolean = true) {
         private fun loadLevel() {
             // body
             bodySegmentsImpl.clear()
-            bodySegmentsImpl.addFirst(BodySegment(FIELD_SAFEMARGIN / 2, FIELD_SAFEMARGIN / 2, R_HEAD, 0.0, R_HEAD * 4))
+            bodySegmentsImpl.addFirst(BodySegment(FIELD_SAFEMARGIN / 2,
+                FIELD_SAFEMARGIN / 2, R_HEAD, 0.0,0.0, R_HEAD * 4))
 
             // debug location of body
             //bodySegmentsImpl.addFirst(BodySegment(level.fieldWidth / 2, level.fieldHeight / 2, R_HEAD, 0.0, R_HEAD * 4))
@@ -293,13 +294,15 @@ class Game(private val addObstacles: Boolean = true) {
 
 }
 
-class BodySegment(var dblStartX: Double, var dblStartY: Double, var dblStartZ: Double, val angle: Double, var dblLength: Double) : IBodySegment {
+class BodySegment(var dblStartX: Double, var dblStartY: Double, var dblStartZ: Double,
+                  val angle: Double, val dblBeta: Double, var dblLength: Double) : IBodySegment {
     val angleSinus = sin(angle)
     val angleCosinus = cos(angle)
 
     var dblEndX: Double = 0.0
     var dblEndY: Double = 0.0
     var dblEndZ: Double = dblStartZ // so far parallel to the ground
+    var dblEndRadius: Double = 0.0
 
     override val startX: Float get() = dblStartX.toFloat()
     override val startY: Float get() = dblStartY.toFloat()
@@ -309,13 +312,14 @@ class BodySegment(var dblStartX: Double, var dblStartY: Double, var dblStartZ: D
     override val endZ: Float get() = dblEndZ.toFloat()
 
     override val length: Float get() = dblLength.toFloat()
+    override val endRadius: Float get() = dblEndRadius.toFloat()
 
     override val alpha = angle.toFloat()
     override val alphaSinus = angleSinus.toFloat()
     override val alphaCosinus = angleCosinus.toFloat()
 
     // for 3d spacing - use default for flat location
-    override val beta = 0f
+    override val beta = dblBeta.toFloat()
     override val betaSinus = sin(beta)
     override val betaCosinus= cos(beta)
 
