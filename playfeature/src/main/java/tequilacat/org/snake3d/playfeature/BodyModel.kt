@@ -30,9 +30,6 @@ interface IBodySegmentModel {
  */
 class BodyModel(private val tailLength: Double, private val radius: Double,
                 private val headOffset: Double, private val headRadius: Double) {
-   // private var length = 0.0
-
-    val segmentCount get() = bodySegmentsImpl.size
 
     private var dHeadX = 0.0
     private var dHeadY = 0.0
@@ -109,7 +106,7 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
 
     private val bodySegmentsImpl = LinkedList<BodySegmentModel>()
 
-    val bodySegments: Iterable<IBodySegmentModel> = bodySegmentsImpl
+    val bodySegments: Collection<IBodySegmentModel> = bodySegmentsImpl
 
     /**
      * Z is floor level
@@ -187,7 +184,7 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
         while (remainingShorten > 0.0) {
             val first = bodySegmentsImpl.first()
 
-            if (first.dLength >= remainingShorten) {
+            if (first.dLength > remainingShorten) {
                 // shorten this one
                 first.shortenBy(remainingShorten)
                 break
@@ -201,9 +198,9 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
     }
 
     companion object {
-        val NO_COLLISION: Collision = Collision(CollisionType.NONE, null)
-        val SELF_COLLISION: Collision = Collision(CollisionType.SELF, null)
-        val WALL_COLLISION: Collision = Collision(CollisionType.WALL, null)
+        private val NO_COLLISION: Collision = Collision(CollisionType.NONE, null)
+        private val SELF_COLLISION: Collision = Collision(CollisionType.SELF, null)
+        private val WALL_COLLISION: Collision = Collision(CollisionType.WALL, null)
     }
 
     enum class CollisionType {

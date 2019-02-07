@@ -1,6 +1,6 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
-import tequilacat.org.snake3d.playfeature.IBodySegment
+import tequilacat.org.snake3d.playfeature.IBodySegmentModel
 import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
 import tequilacat.org.snake3d.playfeature.glutils.Geometry
 import kotlin.math.PI
@@ -9,7 +9,7 @@ import kotlin.math.sin
 
 interface IBodyShape {
     val geometry: Geometry
-    fun update(segments: Collection<IBodySegment>)
+    fun update(segments: Collection<IBodySegmentModel>)
 }
 
 /**
@@ -63,11 +63,11 @@ abstract class AbstractBodyShape(
         }
     }
 
-    abstract fun computeRingCount(segments: Collection<IBodySegment>) : Int
+    abstract fun computeRingCount(segments: Collection<IBodySegmentModel>) : Int
 
-    protected abstract fun rebuildVertexes(bodySegments: Collection<IBodySegment>)
+    protected abstract fun rebuildVertexes(bodySegments: Collection<IBodySegmentModel>)
 
-    override fun update(segments: Collection<IBodySegment>) {
+    override fun update(segments: Collection<IBodySegmentModel>) {
         val ringCount = computeRingCount(segments)
         allocateArrays(ringCount + 1)
         rebuildIndexes(ringCount)
@@ -196,9 +196,9 @@ abstract class AbstractBodyShape(
 class BodyShape(segmentFaceCount: Int, bodyRadius: Float, startAngle: Float, uPerLengthUnit: Float, vStart: Float) :
     AbstractBodyShape(segmentFaceCount, bodyRadius, startAngle, uPerLengthUnit, vStart) {
 
-    override fun computeRingCount(segments: Collection<IBodySegment>) = segments.size + 2
+    override fun computeRingCount(segments: Collection<IBodySegmentModel>) = segments.size + 2
 
-    override fun rebuildVertexes(bodySegments: Collection<IBodySegment>) {
+    override fun rebuildVertexes(bodySegments: Collection<IBodySegmentModel>) {
         val endRadius = bodyRadius
         val endCorrLen = bodyRadius * 0.7f
         val corrRadius = bodyRadius * 0.7f
@@ -224,7 +224,7 @@ class BodyShape(segmentFaceCount: Int, bodyRadius: Float, startAngle: Float, uPe
         index += ringStride
         currentU -= bodyRadius * uPerLengthUnit
 
-        var prevSegment: IBodySegment? = null
+        var prevSegment: IBodySegmentModel? = null
 
         for (segment in bodySegments) {
             addRing(

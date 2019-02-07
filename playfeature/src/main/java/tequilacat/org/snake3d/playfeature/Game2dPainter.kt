@@ -3,6 +3,8 @@ package tequilacat.org.snake3d.playfeature
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import kotlin.math.cos
+import kotlin.math.sin
 
 class Game2dPainter {
 
@@ -22,9 +24,7 @@ class Game2dPainter {
             drawGameObject(c, obj, ratio.toDouble())
         }
 
-        val head = gameScene.bodySegments.last()
-
-        for (segment in gameScene.bodySegments) {
+        for (segment in gameScene.bodyModel.bodySegments) {
             val x0 = (segment.startX * ratio)
             val y0 = (segment.startY * ratio)
             val x1 = (segment.endX * ratio)
@@ -33,13 +33,13 @@ class Game2dPainter {
             c.drawCircle(x0, y0, R_HEAD / 2 * ratio, Paints.bodyPaint)
         }
 
-        val headX = head.endX * ratio
-        val headY = head.endY * ratio
+        val headX = gameScene.bodyModel.headX * ratio
+        val headY = gameScene.bodyModel.headY * ratio
         // drawGameFrame head with direction as
         c.drawCircle(headX, headY, R_HEAD * ratio, Paints.headPaint)
         c.drawLine(
-            headX, headY, (headX + R_HEAD * ratio * head.alphaCosinus),
-            (headY + R_HEAD * ratio * head.alphaSinus), Paints.linePaint
+            headX, headY, (headX + R_HEAD * ratio * cos(gameScene.bodyModel.viewDirection)),
+            (headY + R_HEAD * ratio * sin(gameScene.bodyModel.viewDirection)), Paints.linePaint
         )
 
         // c.drawText(dbgStatus, 0f, fieldHeight * ratio + Paints.linePaint.textSize, Paints.linePaint)

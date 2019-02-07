@@ -13,7 +13,7 @@ import kotlin.random.Random
  */
 class Game(private val addObstacles: Boolean = true) {
     // state - as enum
-    var dbgStatus: String = "none"
+    //var dbgStatus: String = "none"
 
     /// level data
     // TODO make Level class private
@@ -43,11 +43,6 @@ class Game(private val addObstacles: Boolean = true) {
     companion object {
         // Assume SI: meters, seconds
 
-//        const val R_HEAD = 1.0
-//        const val R_OBSTACLE = 1.0
-//        const val R_PICKABLE = 1.0
-        const val OBJCENTER_MIN_DISTANCE = 4.0 // object centers cannot be closer than this
-
         const val FIELD_SAFEMARGIN = R_HEAD * 4 // margin along sizes not seeded by objects
 
         const val SPEED_M_NS = 10.0 / 1_000 // 10 m/s
@@ -55,8 +50,15 @@ class Game(private val addObstacles: Boolean = true) {
         // 10 degrees per head diameter
         const val ROTATE_ANGLE_PER_LEN = (Math.PI / 5) / (R_HEAD * 2)
 
+        // no faster than 50 FPS - 20 ms
+        val MIN_STEP_MS: Long = 20 // milliseconds
+
         // device rotation within +- threshold does not cause turns
         const val TILT_THRESHOLD = 5.0
+
+        const val FLOOR_Z = 0.0
+        const val BODY_INIT_LEN = R_HEAD * 4
+        const val BODY_TAIL_LEN = R_HEAD * 3
     }
 
     private class GameObject(override val type: IFieldObject.Type, private val centerDblX: Double, private val centerDblY: Double) : IFieldObject {
@@ -100,6 +102,7 @@ class Game(private val addObstacles: Boolean = true) {
      */
     private fun initLevel(levelIndex: Int) {
         currentLevelIndex = levelIndex
+        pendingLength = 0.0
         sceneImpl = GameScene(levels[levelIndex])
 
         if(!addObstacles) {
@@ -138,9 +141,6 @@ class Game(private val addObstacles: Boolean = true) {
         INITGAME
     }
 
-    // no faster than 50 FPS - 20 ms
-    val MIN_STEP_MS: Long = 20 // milliseconds
-
     enum class GameControlImpulse {
         LEFT, RIGHT, NONE
     }
@@ -161,18 +161,19 @@ class Game(private val addObstacles: Boolean = true) {
         val deltaAngle = getEffectiveRotateAngle(gameControlImpulse)
 
         processBody(step, deltaAngle * step)
-        val bodySegmentsImpl = sceneImpl.bodySegmentsImpl
-        dbgStatus = "${bodySegmentsImpl.size}"
+        //val bodySegmentsImpl = sceneImpl.bodySegmentsImpl
+        //dbgStatus = "${bodySegmentsImpl.size}"
 
-        val last = bodySegmentsImpl.last
+        //val last = bodySegmentsImpl.last
 
-        if (last.dblEndX < 0 || last.dblEndX >= scene.fieldWidth || last.dblEndY < 0 || last.dblEndY >= scene.fieldHeight) {
+        val collision = scene.bodyModel.checkCollisions(scene)
+
+        if (collision.type == BodyModel.CollisionType.WALL || collision.type == BodyModel.CollisionType.SELF) {
             firstLevel()
             tickResult = TickResult.INITGAME
 
-        } else {
-            val fieldObjectList = (scene as GameScene).fieldObjectsImpl
-            val collidingObj = fieldObjectList.firstOrNull { it.isColliding(last.dblEndX, last.dblEndY, R_HEAD) }
+        } else if (collision.type == BodyModel.CollisionType.GAMEOBJECT) {
+            val collidingObj = collision.fieldObject
 
             when(collidingObj?.type) {
                 IFieldObject.Type.OBSTACLE -> {
@@ -180,12 +181,14 @@ class Game(private val addObstacles: Boolean = true) {
                     tickResult = TickResult.INITGAME
                 }
                 IFieldObject.Type.PICKABLE -> {
-                    fieldObjectList.remove(collidingObj)
-                    pendingLength += collidingObj.radius * 2
+                    scene.remove(collidingObj)
+                    pendingLength += collidingObj.type.radius * 2
                     tickResult = TickResult.CONSUME
                 }
                 else -> tickResult = TickResult.MOVE
             }
+        } else {
+            tickResult = TickResult.MOVE
         }
 
         lastInteraction = SystemClock.uptimeMillis()
@@ -194,35 +197,19 @@ class Game(private val addObstacles: Boolean = true) {
 
     // moves a body along the
     private fun processBody(step: Double, deltaAngle: Double) {
-        val segments = sceneImpl.bodySegmentsImpl
+        val shortenBy: Double
 
-        // have at least one - extend or add it, then subtract from tail
-        if (deltaAngle == 0.0) {
-            segments.last.extend(step)
+        if (pendingLength == 0.0) {
+            shortenBy = step
+        } else if (pendingLength > step) {
+            shortenBy = step
+            pendingLength -= step
         } else {
-            with(segments.last) {
-                segments.addLast(BodySegment(dblEndX, dblEndY, dblEndZ, angle + deltaAngle, 0.0, step))
-            }
-        }
-
-        pendingLength -= step
-
-        // no more pending length and some cut must be done from the tail
-        if (pendingLength < 0) {
-            pendingLength = -pendingLength
-
-            while(segments.first.dblLength <= pendingLength) {
-                pendingLength -= segments.first.dblLength
-                segments.removeFirst()
-            }
-
-            if(pendingLength > 0) {
-                // partial remove of first element
-                segments.first.cutTail(pendingLength)
-            }
-
+            shortenBy = pendingLength
             pendingLength = 0.0
         }
+
+        scene.bodyModel.advance(step, deltaAngle, shortenBy)
     }
 
 
@@ -230,14 +217,20 @@ class Game(private val addObstacles: Boolean = true) {
 
 
     private class GameScene(private val level: Level) : IGameScene {
-        internal val bodySegmentsImpl = LinkedList<BodySegment>()
-        override val bodySegments: Collection<BodySegment> = bodySegmentsImpl
+
+        // so far head is just forward hemisphere
+        override val bodyModel = BodyModel(BODY_TAIL_LEN, R_HEAD, 0.0, R_HEAD)
 
         override val fieldWidth: Float = level.fieldWidth.toFloat()
         override val fieldHeight: Float = level.fieldHeight.toFloat()
 
         val fieldObjectsImpl = mutableListOf<GameObject>()
+
         override val fieldObjects = fieldObjectsImpl as Iterable<IFieldObject>
+
+        override fun remove(collidingObj: IFieldObject) {
+            fieldObjectsImpl.remove(collidingObj)
+        }
 
         init {
             loadLevel()
@@ -247,18 +240,10 @@ class Game(private val addObstacles: Boolean = true) {
          * seeds field with initial
          */
         private fun loadLevel() {
-            // body
-            bodySegmentsImpl.clear()
-            bodySegmentsImpl.addFirst(BodySegment(FIELD_SAFEMARGIN / 2,
-                FIELD_SAFEMARGIN / 2, R_HEAD, 0.0,0.0, R_HEAD * 4))
-
-            // debug location of body
-            //bodySegmentsImpl.addFirst(BodySegment(level.fieldWidth / 2, level.fieldHeight / 2, R_HEAD, 0.0, R_HEAD * 4))
-
-            // field objects
+            bodyModel.init(FIELD_SAFEMARGIN / 2,
+                FIELD_SAFEMARGIN / 2, FLOOR_Z, 0.0, BODY_INIT_LEN)
 
             fieldObjectsImpl.clear()
-            // fieldObjectList.addAll(listOf(GameObject(GameObject.Type.PICKABLE, 50.0, 50.0)))
 
             val fieldWidth = level.fieldWidth
             val fieldHeight = level.fieldHeight
@@ -291,58 +276,4 @@ class Game(private val addObstacles: Boolean = true) {
             }
         }
     }
-
 }
-
-class BodySegment(var dblStartX: Double, var dblStartY: Double, var dblStartZ: Double,
-                  val angle: Double, val dblBeta: Double, var dblLength: Double) : IBodySegment {
-    val angleSinus = sin(angle)
-    val angleCosinus = cos(angle)
-
-    var dblEndX: Double = 0.0
-    var dblEndY: Double = 0.0
-    var dblEndZ: Double = dblStartZ // so far parallel to the ground
-    var dblEndRadius: Double = 0.0
-
-    override val startX: Float get() = dblStartX.toFloat()
-    override val startY: Float get() = dblStartY.toFloat()
-    override val startZ: Float get() = dblStartZ.toFloat()
-    override val endX: Float get() = dblEndX.toFloat()
-    override val endY: Float get() = dblEndY.toFloat()
-    override val endZ: Float get() = dblEndZ.toFloat()
-
-    override val length: Float get() = dblLength.toFloat()
-    override val endRadius: Float get() = dblEndRadius.toFloat()
-
-    override val alpha = angle.toFloat()
-    override val alphaSinus = angleSinus.toFloat()
-    override val alphaCosinus = angleCosinus.toFloat()
-
-    // for 3d spacing - use default for flat location
-    override val beta = dblBeta.toFloat()
-    override val betaSinus = sin(beta)
-    override val betaCosinus= cos(beta)
-
-
-
-    init {
-        computeEnd()
-    }
-
-    private fun computeEnd() {
-        dblEndX = dblStartX + dblLength * angleCosinus
-        dblEndY = dblStartY + dblLength * angleSinus
-    }
-
-    fun extend(step: Double) {
-        dblLength += step
-        computeEnd()
-    }
-
-    fun cutTail(minusLength: Double) {
-        dblLength -= minusLength
-        dblStartX += minusLength * angleCosinus
-        dblStartY += minusLength * angleSinus
-    }
-}
-

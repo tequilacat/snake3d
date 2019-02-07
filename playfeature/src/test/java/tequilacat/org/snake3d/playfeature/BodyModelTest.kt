@@ -39,8 +39,7 @@ class BodyModelTest {
                                              startX: Double = tStartX, startY: Double = tStartY) {
         val body = this
         val segments = body.bodySegments.toList()
-        assertEquals(body.segmentCount, segments.size)
-        assertEquals(expectedLengths.size, body.segmentCount)
+        assertEquals(expectedLengths.size, segments.size)
 
         var totalLen = 0.0
         val floorZ = segments[0].startZ // always at floor
@@ -127,11 +126,11 @@ class BodyModelTest {
         val model = BodyModel(tailLength = 2.0, radius = tRadius, headOffset = tHeadOffset, headRadius = tHeadR)
             .apply { init(tStartX, tStartY, tStartZ, tStartAngle, 3.0) }
 
-        assertEquals(2, model.segmentCount)
+        assertEquals(2, model.bodySegments.size)
 
         // check we've reinited content to shorter sequence with new value
         model.init(0.0,0.0, 0.0, 0.0, 0.1)
-        assertEquals(1, model.segmentCount)
+        assertEquals(1, model.bodySegments.size)
         assertEquals(0.1f, model.bodySegments.first().length, testFloatTolerance)
     }
 
@@ -304,6 +303,29 @@ class BodyModelTest {
                 tStartX + delta*cos(tStartAngle), tStartY + delta*cos(tStartAngle)
                 )
     }
+
+    @Test
+    fun `advance exact length`() {
+        val tailLen = 1.0
+        val initLen = 0.1
+        val delta = 0.1
+
+        BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
+            .apply {
+                init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
+                // make 2 segments: advance without shorten, 2 segments of L=0.1
+                advance(delta, PI/2, 0.0)
+                // now continue straight, subtracting exact delta from tail
+                advance(delta, 0.0, delta)
+
+            }.assertBodySegments(tailLen,
+                doubleArrayOf(initLen * 2),
+                doubleArrayOf(tStartAngle + PI/2),
+                tStartX + delta*cos(tStartAngle),
+                tStartY + delta*cos(tStartAngle)
+            )
+    }
+
 
     @Test
     fun `advance short across taillength`() {

@@ -11,6 +11,8 @@ import tequilacat.org.snake3d.playfeature.glutils.*
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * stores opengl data from the game
@@ -89,7 +91,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
         override lateinit var geometryBuffer: GeometryBuffer
 
-        fun update(segments: Collection<IBodySegment>) {
+        fun update(segments: Collection<IBodySegmentModel>) {
             val time0 = SystemClock.uptimeMillis()
             bodyShape.update(segments)
 
@@ -207,7 +209,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
                 if (it.type == IFieldObject.Type.OBSTACLE) ObjColors.OBSTACLE.rgb else ObjColors.PICKABLE.rgb,
                 gameObject = it,
                 textureId = if (it.type == IFieldObject.Type.OBSTACLE) obstacleTextureId else pickableTextureId
-            ).apply { position(it.centerX.toFloat(), it.centerY.toFloat(), 0f, 0f) }
+            ).apply { position(it.centerX, it.centerY, 0f, 0f) }
         })
 
         bodyShapeObject = BodyShapeObject(texturePainter, bodyTextureId)
@@ -219,7 +221,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         if (debugScene != null) {
             bodyShapeObject.update(debugScene.bodySegments)
         } else {
-            bodyShapeObject.update(game.scene.bodySegments)
+            bodyShapeObject.update(game.scene.bodyModel.bodySegments)
         }
     }
 
@@ -239,16 +241,19 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             )
         } else {
 
-            val eyeH = bodyUnit() * 3
-            val head = game.scene.bodySegments.last()
+            val viewSin = sin(game.scene.bodyModel.viewDirection)
+            val viewCos = cos(game.scene.bodyModel.viewDirection)
 
-            val cx: Float = head.endX - head.alphaCosinus * eyeRearDistance
-            val cy: Float = head.endY - head.alphaSinus * eyeRearDistance
+            val eyeH = bodyUnit() * 3
+            // val head = game.scene.bodySegments.last()
+
+            val cx: Float = game.scene.bodyModel.headX- viewCos * eyeRearDistance
+            val cy: Float = game.scene.bodyModel.headY - viewSin * eyeRearDistance
 
             Matrix.setLookAtM(
                 drawContext.viewMatrix, 0,
                 cx, cy, eyeH,
-                cx + head.alphaCosinus, cy + head.alphaSinus, eyeH,
+                cx + viewCos, cy + viewSin, eyeH,
                 0f, 0.0f, 1.0f
             )
 
@@ -276,7 +281,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
     private fun drawGameFrame() {
         val tickResult = if (debugScene == null) {
-            game.tick(inputController.computeImpulse(game.scene.bodySegments.last().alpha))
+            game.tick(inputController.computeImpulse(game.scene.bodyModel.viewDirection))
         } else Game.TickResult.NONE
 
         when(tickResult) {

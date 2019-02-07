@@ -2,6 +2,7 @@ package tequilacat.org.snake3d.playfeature
 
 class GameGeometry {
     companion object {
+        // TODO hide geometry radiuses in BodyModel after reworking BodyShape
         const val R_HEAD = 1.0
         const val R_OBSTACLE = 1.0
         const val R_PICKABLE = 1.0
@@ -20,49 +21,12 @@ interface IFieldObject {
 }
 
 interface IGameScene {
+
     val fieldWidth: Float
     val fieldHeight: Float
 
     val fieldObjects: Iterable<IFieldObject>
-    val bodySegments: Collection<BodySegment> // TODO replace bodySegments with BodyModel
-}
+    fun remove(collidingObj: IFieldObject)
 
-interface IBodySegment {
-    val startX: Float
-    val startY: Float
-    val startZ: Float
-
-    val endX: Float
-    val endY: Float
-    val endZ: Float
-
-    val length: Float
-    val endRadius: Float
-
-    val alpha: Float
-    val alphaSinus: Float
-    val alphaCosinus: Float
-
-    val beta: Float
-    val betaSinus: Float
-    val betaCosinus: Float
-}
-
-/**
- * appends a segment to the list
- */
-fun MutableList<IBodySegment>.append(
-    angle: Double,
-    length: Double,
-    angleRelative: Boolean = true
-): MutableList<IBodySegment> {
-
-    val last = this.last()
-    this.add(
-        BodySegment(
-            last.endX.toDouble(), last.endY.toDouble(), last.endZ.toDouble(),
-            angle + if(angleRelative) last.alpha else 0f, 0.0, length
-        )
-    )
-    return this
+    val bodyModel: BodyModel
 }

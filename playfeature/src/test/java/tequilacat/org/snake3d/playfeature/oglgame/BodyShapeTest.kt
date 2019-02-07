@@ -13,9 +13,62 @@ import kotlin.math.sin
 class BodyShapeTest {
 
     private val testRadius = 1f
-    private val beta = 0.0
+        //private val beta = 0.0
 
     private fun bodyShape() = BodyShape(4, testRadius,0f,1f, 0f)
+
+
+    // TODO replace List<IBodySegmentModel> with bodymodel-built sequences
+    class BodySegment(
+        override val startX: Float,
+        override val startY: Float,
+        override val startZ: Float,
+        override val length: Float,
+        override val startRadius: Float,
+        override val endRadius: Float,
+        override val alpha: Float
+    ) : IBodySegmentModel {
+
+        override var endX: Float = 0f
+        override var endY: Float = 0f
+        override var endZ: Float = 0f
+
+        //class BodySegment(var dblStartX: Double, var dblStartY: Double, var dblStartZ: Double,
+//                  val angle: Double, val dblBeta: Double, var dblLength: Double) : IBodySegment {
+        override val alphaSinus = sin(alpha)
+        override val alphaCosinus = cos(alpha)
+
+        constructor(dblStartX: Double, dblStartY: Double, dblStartZ: Double,
+                  angle: Double, length: Double)
+                : this(dblStartX.toFloat(), dblStartY.toFloat(), dblStartZ.toFloat(),
+            length.toFloat(), 0f, 0f, angle.toFloat())
+
+        init {
+            computeEnd()
+        }
+
+        private fun computeEnd() {
+            endX = startX + length * alphaCosinus
+            endY = startY + length * alphaSinus
+            endZ = startZ
+        }
+    }
+
+    fun MutableList<IBodySegmentModel>.append(
+        angle: Double,
+        length: Double,
+        angleRelative: Boolean = true
+    ): MutableList<IBodySegmentModel> {
+
+        val last = this.last()
+        this.add(
+            BodySegment(
+                last.endX.toDouble(), last.endY.toDouble(), last.endZ.toDouble(),
+                angle + if (angleRelative) last.alpha else 0f, length
+            )
+        )
+        return this
+    }
 
     /**
      * adds count copies of last element
@@ -25,7 +78,7 @@ class BodyShapeTest {
 
     private fun singleSegmentGeom() = bodyShape()
         .run {
-            update(listOf(BodySegment(0.0, 0.0, 0.0, 0.0, beta, 1.0)))
+            update(listOf(BodySegment(0.0, 0.0, 0.0, 0.0, 1.0)))
             geometry
         }
 
@@ -68,7 +121,7 @@ class BodyShapeTest {
      */
     @Test
     fun `index array reallocation`() {
-        val segments = mutableListOf(BodySegment(0.0, 0.0, 0.0, 0.0, beta, 1.0))
+        val segments = mutableListOf(BodySegment(0.0, 0.0, 0.0, 0.0, 1.0))
 
         val builder = bodyShape()
         builder.update(segments)
@@ -88,8 +141,6 @@ class BodyShapeTest {
         assertNotEquals(prevIndexes, builder.geometry.indexes)
     }
 
-
-
     /////////////////////////////////////////////////
     // Vertex test
 
@@ -99,8 +150,8 @@ class BodyShapeTest {
     @Test
     fun `vertex ring start`() {
         val nFaces = 5
-        val segments = mutableListOf<IBodySegment>(
-            BodySegment(0.0, 0.0, 0.0, 0.0, beta, 10.0))
+        val segments = mutableListOf<IBodySegmentModel>(
+            BodySegment(0.0, 0.0, 0.0, 0.0, 10.0))
             .append(PI / 4, 10.0, true)
             .append(PI / 4, 10.0, true)
 
@@ -125,7 +176,7 @@ class BodyShapeTest {
      */
     @Test
     fun `vertex array reallocation`() {
-        val segments = mutableListOf(BodySegment(0.0, 0.0, 0.0, 0.0, beta, 1.0))
+        val segments = mutableListOf(BodySegment(0.0, 0.0, 0.0, 0.0, 1.0))
 
         val builder =  bodyShape()
         builder.update(segments)
@@ -178,7 +229,7 @@ class BodyShapeTest {
     @Test
     fun `vertex coordinates`() {
         val segments = mutableListOf(BodySegment(0.0, 0.0, testRadius.toDouble(),
-            0.0, beta, 10.0))
+            0.0, 10.0))
 
         val builder =  bodyShape()
         builder.update(segments)
@@ -191,13 +242,10 @@ class BodyShapeTest {
         // add rotated segment
         segments.add(
             BodySegment(
-                segments.first().dblEndX,
-                segments.first().dblEndY,
-                segments.first().dblEndZ,
-                PI / 4, beta,
-                10.0
-            )
-        )
+                segments.first().endX.toDouble(),
+                segments.first().endY.toDouble(),
+                segments.first().endZ.toDouble(),
+                PI / 4, 10.0))
         builder.update(segments)
         assertEquals(2 + (segments.size + 3) * builder.segmentFaceCount, builder.geometry.vertexCount)
 
@@ -242,8 +290,8 @@ class BodyShapeTest {
     @Test
     fun normals() {
         val geometry =  bodyShape().run {
-            update(mutableListOf<IBodySegment>(
-                BodySegment(0.0, 0.0, testRadius.toDouble(), 0.0, beta, 10.0))
+            update(mutableListOf<IBodySegmentModel>(
+                BodySegment(0.0, 0.0, testRadius.toDouble(), 0.0, 10.0))
                 .append(PI / 4, 10.0, true)
             )
             geometry
@@ -280,19 +328,19 @@ class BodyShapeTest {
         }
 
         val geom1 = bodyShape().run {
-            update(mutableListOf<IBodySegment>(
+            update(mutableListOf<IBodySegmentModel>(
                 BodySegment(
                     10.0, 4.0, 1.0,
-                    PI/4, beta, 2.0)))
+                    PI/4, 2.0)))
             geometry
         }
         val v1 = getCoords(geom1, (0..12))
 
         val geom2 = bodyShape().run {
-            update(mutableListOf<IBodySegment>(
+            update(mutableListOf<IBodySegmentModel>(
                 BodySegment(
                     10.0, 4.0, 1.0,
-                    PI/4, beta, 2.0))
+                    PI/4, 2.0))
                 .append(PI/4, 2.0, false))
             geometry
         }
@@ -309,8 +357,8 @@ class BodyShapeTest {
     fun `texture U`() {
         val uPer1Length = 0.1f // 1
         val nFaceSegments = 4
-        val segment = mutableListOf<IBodySegment>(
-            BodySegment(0.0, 0.0, 0.0, 0.0, beta, 1.0))
+        val segment = mutableListOf<IBodySegmentModel>(
+            BodySegment(0.0, 0.0, 0.0, 0.0, 1.0))
             .append(PI / 4, 0.3, true)
             .append(-PI / 4, 1.0, true)
 
@@ -354,8 +402,8 @@ class BodyShapeTest {
     fun `texture V`() {
         val nFaceSegments = 10
         val geometry = BodyShape(nFaceSegments, 0.5f, 3 * PI.toFloat() / 2, 1f, 0f).run {
-            update(mutableListOf<IBodySegment>(
-                BodySegment(0.0, 0.0, 0.0, 0.0, beta, 1.0)
+            update(mutableListOf<IBodySegmentModel>(
+                BodySegment(0.0, 0.0, 0.0, 0.0, 1.0)
             ));geometry
         }
 
@@ -373,14 +421,4 @@ class BodyShapeTest {
         assertEquals(0.5f, geometry.vertexes[4])
         assertEquals(0.5f, geometry.vertexes[geometry.vertexCount*geometry.vertexFloatStride - 4])
     }
-
-
-
-    // TODO Test natural shape generation
-    /*
-    when tailLenth > totalLength - headR = HEAD_R
-      straight: tail, 1 ring (of r = bodyRadius), nose (at center of nose ring)
-
-     */
-
 }
