@@ -7,9 +7,9 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-interface IBodyShape {
+interface IBodyGeometryBuilder {
     val geometry: Geometry
-    fun update(segments: Collection<IBodySegmentModel>)
+    fun update(segments: Iterable<IBodySegmentModel>)
 }
 
 /**
@@ -17,11 +17,11 @@ interface IBodyShape {
  * @param uPerLengthUnit how much U per 1.0 of run length
  * @param vStart texture V at angle 0
  */
-abstract class AbstractBodyShape(
-    val segmentFaceCount: Int, protected val bodyRadius: Float,
+abstract class AbstractBodyGeometryBuilder(
+    val segmentFaceCount: Int,
     private val startAngle: Float,
     protected val uPerLengthUnit: Float, private val vStart: Float
-) : IBodyShape {
+) : IBodyGeometryBuilder {
 
     private val segmentAngleSinCos = Array(segmentFaceCount) {
         Pair(
@@ -40,38 +40,12 @@ abstract class AbstractBodyShape(
     protected var vertexes: FloatArray = FloatArray(1000)
     private var indexes: ShortArray = ShortArray(2000)
     private var indexCount = 0
-    private var vertexCount = 0
+    protected var vertexCount = 0
 
-    private fun allocateArrays(ringCount: Int) {
-        // allocate vertexes
-        vertexCount = (segmentFaceCount * ringCount + 2)
-        val vertexCoordCount = vertexCount * vertexFloatStride
+    protected abstract fun rebuildGeometry(bodySegments: Iterable<IBodySegmentModel>)
 
-        if(vertexes.size < vertexCoordCount) {
-            vertexes = FloatArray(vertexCoordCount + 1000)
-//            Log.d("body", "increase vertexes to ${vertexes.size}")
-        }
-
-        // allocate indexes
-        // 2 triangle each of 3 vert for each face of a segment
-        indexCount = ringCount * segmentFaceCount * 2 * 3
-
-        // alloc in advance
-        if(indexes.size < indexCount) {
-            indexes = ShortArray(indexCount + 1000) //
-//            Log.d("body", "increase indexes to ${indexes.size}")
-        }
-    }
-
-    abstract fun computeRingCount(segments: Collection<IBodySegmentModel>) : Int
-
-    protected abstract fun rebuildVertexes(bodySegments: Collection<IBodySegmentModel>)
-
-    override fun update(segments: Collection<IBodySegmentModel>) {
-        val ringCount = computeRingCount(segments)
-        allocateArrays(ringCount + 1)
-        rebuildIndexes(ringCount)
-        rebuildVertexes(segments)
+    override fun update(segments: Iterable<IBodySegmentModel>) {
+        rebuildGeometry(segments)
 
         //val stNormals = SystemClock.uptimeMillis()
         computeNormals()
@@ -88,44 +62,35 @@ abstract class AbstractBodyShape(
 
     private val tmpNormals = FloatArray(3)
 
-    private fun computeNormals() {
-        // reset normals to 0
-        for (vi in vertexFloatStride - 3 until vertexCount step vertexFloatStride) {
-            // reset normals
-            vertexes[vi] = 0f
-            vertexes[vi + 1] = 0f
-            vertexes[vi + 2] = 0f
-        }
+    /**
+     * (re-)allocates vertex array from known ring count
+     * Called from rebuildGeometry when ring count is known
+     */
+    protected fun allocateVertexArray(ringCount: Int) {
+        vertexCount = (segmentFaceCount * ringCount + 2)
+        val vertexCoordCount = vertexCount * vertexFloatStride
 
-        var i = 0
-        while(i < indexCount) {
-        //for (i in 0 until indexCount step 3) {
-            // compute normals
-            CoordUtils.crossProduct(
-                tmpNormals, 0, // end of stride (to account for possible UV in between
-                vertexes, indexes[i].toInt(), indexes[i + 1].toInt(), indexes[i + 2].toInt(), vertexFloatStride
-            )
-
-            var count = 3
-            while(count-- > 0) {
-            //for (it in 0..2) {
-                val vPos = indexes[i] * vertexFloatStride + 5
-                vertexes[vPos] += tmpNormals[0]
-                vertexes[vPos + 1] += tmpNormals[1]
-                vertexes[vPos + 2] += tmpNormals[2]
-                i++
-            }
-
-            //i += 3
-        }
-
-        for(vertexIndex in 0 until vertexCount) {
-            val normalPos = vertexIndex * vertexFloatStride + 5
-            CoordUtils.normalize(vertexes, normalPos, vertexes, normalPos)
+        if(vertexes.size < vertexCoordCount) {
+            vertexes = FloatArray(vertexCoordCount + 1000)
         }
     }
 
-    private fun rebuildIndexes(ringsCount: Int) {
+    /**
+     * called by computeVertexes when ring count is known
+     */
+    protected fun rebuildIndexes(ringsCount: Int) {
+        // allocate indexes
+        // 2 triangle each of 3 vert for each face of a segment
+        // indexCount = ringCount * segmentFaceCount * 2 * 3
+        // 3*triangles
+        indexCount = 3 * (segmentFaceCount * 2 + (ringsCount - 1) * segmentFaceCount * 2)
+
+        // alloc in advance
+        if(indexes.size < indexCount) {
+            indexes = ShortArray(indexCount + 1000) //
+//            Log.d("body", "increase indexes to ${indexes.size}")
+        }
+
         // generate standard triangle grid
         var curVertexIndex = 0
 
@@ -138,7 +103,7 @@ abstract class AbstractBodyShape(
 
         var startVertex = 1
 
-        for (segIndex in 0 until ringsCount) {
+        for (segIndex in 0 until ringsCount - 1) {
             for (faceIndex in 0 until segmentFaceCount) {
                 val i1 = startVertex + faceIndex
                 val i2 = i1 + segmentFaceCount
@@ -168,6 +133,48 @@ abstract class AbstractBodyShape(
         }
     }
 
+    private fun computeNormals() {
+        // reset normals to 0
+        for (vi in vertexFloatStride - 3 until vertexCount step vertexFloatStride) {
+            // reset normals
+            vertexes[vi] = 0f
+            vertexes[vi + 1] = 0f
+            vertexes[vi + 2] = 0f
+        }
+
+        var i = 0
+        while(i < indexCount) {
+        //for (i in 0 until indexCount step 3) {
+            // compute normals
+            CoordUtils.crossProduct(
+                tmpNormals, 0, // end of stride (to account for possible UV in between
+                vertexes, indexes[i].toInt(), indexes[i + 1].toInt(), indexes[i + 2].toInt(), vertexFloatStride
+            )
+
+//            println("updateN triangle ${i / 3}: v[${indexes[i]}, ${indexes[i + 1]}, ${indexes[i + 2]}] += normal ${tmpNormals.contentToString()}")
+
+            var count = 3
+            while(count-- > 0) {
+            //for (it in 0..2) {
+                val vPos = indexes[i] * vertexFloatStride + 5
+                vertexes[vPos] += tmpNormals[0]
+                vertexes[vPos + 1] += tmpNormals[1]
+                vertexes[vPos + 2] += tmpNormals[2]
+//                println("   upd. normal of vertex #${indexes[i]} [vPos0 = ${vPos-5}] -> " +
+//                        "${vertexes[vPos]}, ${vertexes[vPos + 1]}, ${vertexes[vPos + 2]}")
+
+                i++
+            }
+
+            //i += 3
+        }
+        for(vertexIndex in 0 until vertexCount) {
+            val normalPos = vertexIndex * vertexFloatStride + 5
+            CoordUtils.normalize(vertexes, normalPos, vertexes, normalPos)
+//            println("  V#$vertexIndex: ${vertexes[normalPos]}, ${vertexes[normalPos+1]}, ${vertexes[normalPos+2]}")
+        }
+    }
+
     protected fun addRing(atIndex: Int, cx: Float, cy: Float, cz: Float, radius: Float, angle: Float,
                         ringU: Float) {
         val sinus = sin(angle)
@@ -190,19 +197,26 @@ abstract class AbstractBodyShape(
             index += vertexFloatStride
         }
     }
-
 }
 
-class BodyShape(segmentFaceCount: Int, bodyRadius: Float, startAngle: Float, uPerLengthUnit: Float, vStart: Float) :
-    AbstractBodyShape(segmentFaceCount, bodyRadius, startAngle, uPerLengthUnit, vStart) {
+class BodyShape(segmentFaceCount: Int, private val bodyRadius: Float, startAngle: Float, uPerLengthUnit: Float, vStart: Float) :
+    AbstractBodyGeometryBuilder(segmentFaceCount, startAngle, uPerLengthUnit, vStart) {
 
-    override fun computeRingCount(segments: Collection<IBodySegmentModel>) = segments.size + 2
+    override fun rebuildGeometry(bodySegments: Iterable<IBodySegmentModel>) {
+        var totalLength = bodyRadius * 2
+        var segmentCount = 0
 
-    override fun rebuildVertexes(bodySegments: Collection<IBodySegmentModel>) {
+        // first run is needed anyway, so we compute also segment count
+        bodySegments.forEach {
+            totalLength += it.length
+            segmentCount++
+        }
+        // and adjust vertex array here
+        allocateVertexArray(segmentCount + 3)
+
         val endRadius = bodyRadius
         val endCorrLen = bodyRadius * 0.7f
         val corrRadius = bodyRadius * 0.7f
-        val totalLength = bodySegments.sumByDouble { it.length.toDouble() }.toFloat() + bodyRadius * 2
         var currentU = totalLength * uPerLengthUnit
         val first = bodySegments.first()
 
@@ -215,6 +229,7 @@ class BodyShape(segmentFaceCount: Int, bodyRadius: Float, startAngle: Float, uPe
 
         var index = vertexFloatStride
         val ringStride = segmentFaceCount * vertexFloatStride
+        var ringCount = 3
 
         // add first correction ring
         addRing(index,
@@ -234,6 +249,7 @@ class BodyShape(segmentFaceCount: Int, bodyRadius: Float, startAngle: Float, uPe
                 else segment.alpha,
                 currentU
             )
+            ringCount++
 
             currentU -= uPerLengthUnit*segment.length
             prevSegment = segment
@@ -259,5 +275,77 @@ class BodyShape(segmentFaceCount: Int, bodyRadius: Float, startAngle: Float, uPe
 
         vertexes[index++] = 0f // nose U is always 0
         vertexes[index] = 0.5f // nose V TODO what should be V for end points? middle?
+
+        rebuildIndexes(ringCount)
+    }
+}
+
+
+class BodyShapeBuilder(segmentFaceCount: Int, startAngle: Float, uPerLengthUnit: Float, vStart: Float) :
+    AbstractBodyGeometryBuilder(segmentFaceCount, startAngle, uPerLengthUnit, vStart) {
+
+    override fun rebuildGeometry(bodySegments: Iterable<IBodySegmentModel>) {
+        val iterableSegments = bodySegments as Iterable<IBodySegmentModel>
+        val iter = iterableSegments.iterator()
+        val first = iter.next() // bodySegments.first()
+        var totalLength = 0f
+        var segmentCount = 0
+
+        // first run is needed anyway, so we compute also segment count
+        iterableSegments.forEach {
+            totalLength += it.length
+            segmentCount++
+        }
+        // and adjust vertex array here
+        allocateVertexArray(segmentCount)
+        rebuildIndexes(segmentCount)
+
+        var currentU = (totalLength) * uPerLengthUnit
+
+        // add tail point
+        vertexes[0] = first.startX
+        vertexes[1] = first.startY
+        vertexes[2] = first.startZ
+        vertexes[3] = currentU
+        vertexes[4] = 0.5f
+
+        var index = vertexFloatStride
+        val ringStride = segmentFaceCount * vertexFloatStride
+        var prev = first // assume hasNext
+        var ringCount = 1 // anyway last ring is added
+
+        while(iter.hasNext()) {
+            val next = iter.next()
+            // betveen prev end and next start
+
+            currentU -= uPerLengthUnit * prev.length
+            addRing(
+                index, prev.endX, prev.endY, prev.endZ, prev.endRadius,
+                (next.alpha + prev.alpha) / 2, currentU
+            )
+
+            ringCount++
+            index += ringStride
+            prev = next
+        }
+
+        // prev points to last segment, draw closing ring and nose
+        addRing(
+            index, prev.endX, prev.endY, prev.endZ, prev.endRadius,
+            prev.alpha, 0f // nose point has always 0U
+        )
+        index += ringStride
+
+        // add nose as center of face ring
+        vertexes[index++] = prev.endX
+        vertexes[index++] = prev.endY
+        vertexes[index++] = prev.endZ
+
+        vertexes[index++] = 0f // nose U is always 0
+        vertexes[index++] = 0.5f // nose V TODO what should be V for end points? middle?
+
+        // now index points at normal start, increase by 3 to point to next vertex stride
+        // and compute vertex count
+        vertexCount = (index +3 )/ vertexFloatStride
     }
 }

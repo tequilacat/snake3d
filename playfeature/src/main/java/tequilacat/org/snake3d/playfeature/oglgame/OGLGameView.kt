@@ -5,7 +5,6 @@ import android.opengl.GLES20.*
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import android.os.SystemClock
-import android.util.Log
 import tequilacat.org.snake3d.playfeature.*
 import tequilacat.org.snake3d.playfeature.glutils.*
 import javax.microedition.khronos.egl.EGLConfig
@@ -87,7 +86,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             //1/(2 * PI / GameGeometry.R_HEAD).toFloat(),
             0.2f, // for yellow brown
             //0.5f, // good for grayscale
-            0f) as IBodyShape
+            0f) as IBodyGeometryBuilder
 
         override lateinit var geometryBuffer: GeometryBuffer
 
