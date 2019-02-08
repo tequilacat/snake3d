@@ -17,7 +17,7 @@ class Game(private val addObstacles: Boolean = true) {
 
     /// level data
     // TODO make Level class private
-    data class Level(val fieldWidth: Double, val fieldHeight: Double, val pickableCount: Int, val obstacleCount: Int)
+    private data class Level(val fieldWidth: Double, val fieldHeight: Double, val pickableCount: Int, val obstacleCount: Int)
     private val levels = listOf(Level(100.0, 100.0, 20, 5))
     private var currentLevelIndex = 0
 
@@ -34,11 +34,6 @@ class Game(private val addObstacles: Boolean = true) {
         }
 
     private var lastRoll = 0.0
-
-    /**
-     * length to add while moving head - if positive we add head but don't cut tail
-     */
-    private var pendingLength: Double = 0.0
 
     companion object {
         // Assume SI: meters, seconds
@@ -102,7 +97,6 @@ class Game(private val addObstacles: Boolean = true) {
      */
     private fun initLevel(levelIndex: Int) {
         currentLevelIndex = levelIndex
-        pendingLength = 0.0
         sceneImpl = GameScene(levels[levelIndex])
 
         if(!addObstacles) {
@@ -125,9 +119,6 @@ class Game(private val addObstacles: Boolean = true) {
         (lastRoll < -TILT_THRESHOLD) -> ROTATE_ANGLE_PER_LEN
         else -> 0.0
     }
-
-    // val head: IBodySegment get() = bodySegmentsImpl.last
-
 
     /**
      *  makes one step forward,
@@ -160,11 +151,7 @@ class Game(private val addObstacles: Boolean = true) {
         // check angle delta
         val deltaAngle = getEffectiveRotateAngle(gameControlImpulse)
 
-        processBody(step, deltaAngle * step)
-        //val bodySegmentsImpl = sceneImpl.bodySegmentsImpl
-        //dbgStatus = "${bodySegmentsImpl.size}"
-
-        //val last = bodySegmentsImpl.last
+        scene.bodyModel.advance(step, deltaAngle * step)
 
         val collision = scene.bodyModel.checkCollisions(scene)
 
@@ -182,7 +169,7 @@ class Game(private val addObstacles: Boolean = true) {
                 }
                 IFieldObject.Type.PICKABLE -> {
                     scene.remove(collidingObj)
-                    pendingLength += collidingObj.type.radius * 2
+                    scene.bodyModel.feed(collidingObj.type.radius.toDouble() * 2)
                     tickResult = TickResult.CONSUME
                 }
                 else -> tickResult = TickResult.MOVE
@@ -194,27 +181,6 @@ class Game(private val addObstacles: Boolean = true) {
         lastInteraction = SystemClock.uptimeMillis()
         return tickResult
     }
-
-    // moves a body along the
-    private fun processBody(step: Double, deltaAngle: Double) {
-        val shortenBy: Double
-
-        if (pendingLength == 0.0) {
-            shortenBy = step
-        } else if (pendingLength > step) {
-            shortenBy = step
-            pendingLength -= step
-        } else {
-            shortenBy = pendingLength
-            pendingLength = 0.0
-        }
-
-        scene.bodyModel.advance(step, deltaAngle, shortenBy)
-    }
-
-
-
-
 
     private class GameScene(private val level: Level) : IGameScene {
 

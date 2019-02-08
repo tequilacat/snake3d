@@ -31,6 +31,8 @@ interface IBodySegmentModel {
 class BodyModel(private val tailLength: Double, private val radius: Double,
                 private val headOffset: Double, private val headRadius: Double) {
 
+    private var foodRunLength: Double = 0.0
+
     private var dHeadX = 0.0
     private var dHeadY = 0.0
 
@@ -113,6 +115,7 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
      */
     fun init(startX: Double, startY: Double, floorZ: Double,
              startHorzAngle: Double, totalLength: Double) {
+        foodRunLength = 0.0
         bodySegmentsImpl.clear()
         bodySegmentsImpl.addFirst(BodySegmentModel(startX, startY, floorZ, startHorzAngle, totalLength))
         processSegments()
@@ -168,7 +171,7 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
     /**
      *  moves body forward, shortening tail if shortenBy is > 0
      *  */
-    fun advance(distance: Double, angleDelta: Double, shortenBy: Double) {
+    fun advance(distance: Double, angleDelta: Double) {
         // append new one or extend last if angle is 0
         val last = bodySegmentsImpl.last()
 
@@ -179,7 +182,19 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
                 last.dAlpha + angleDelta, distance))
         }
 
-        var remainingShorten = shortenBy
+        var remainingShorten = when {
+            foodRunLength == 0.0 -> distance
+            foodRunLength >= distance -> {
+                foodRunLength -= distance
+                0.0
+            }
+            else -> {
+                // FRL < distance - drag something
+                val res = distance - foodRunLength
+                foodRunLength = 0.0
+                res
+            }
+        }
 
         while (remainingShorten > 0.0) {
             val first = bodySegmentsImpl.first()
@@ -227,5 +242,10 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
         }
 
         return NO_COLLISION
+    }
+
+    /** how much length to keep while extending */
+    fun feed(aFoodRunLength: Double) {
+        foodRunLength += aFoodRunLength
     }
 }

@@ -12,6 +12,7 @@ class GameGeometry {
 interface IFieldObject {
     enum class Type(val dblRadius:Double) {
         OBSTACLE( GameGeometry.R_OBSTACLE), PICKABLE( GameGeometry.R_PICKABLE);
+        // TODO IFieldObject.Type.radius to double
         val radius = dblRadius.toFloat()
     }
 

@@ -9,6 +9,9 @@ import kotlin.math.sin
 
 class BodyModelTest {
 
+    private val TAILLEN_LARGE_100 = 100.0
+    /** indicates that no shortening should take place */
+    private val FOODLENGTH_LARGE = 100.0
     private val NO_ROTATE = 0.0
 
     private val tStartX = 5.0
@@ -27,16 +30,19 @@ class BodyModelTest {
         advanceAngles: DoubleArray
     ) {
         val body = BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
-            .apply { init(tStartX, tStartY, tStartZ, tStartAngle, initLen) }
+            .apply {
+                init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
+                feed(FOODLENGTH_LARGE)
+            }
 
         for (i in 0 until advanceLengths.size) {
-            body.advance(advanceLengths[i], advanceAngles[i], 0.0)
+            body.advance(advanceLengths[i], advanceAngles[i])
         }
-        body.assertBodySegments(tailLen, expectedLengths, expectedAngles)
+        body.assertSegments(tailLen, expectedLengths, expectedAngles)
     }
 
-    private fun BodyModel.assertBodySegments(tailLen: Double, expectedLengths: DoubleArray, expectedAngles: DoubleArray,
-                                             startX: Double = tStartX, startY: Double = tStartY) {
+    private fun BodyModel.assertSegments(tailLen: Double, expectedLengths: DoubleArray, expectedAngles: DoubleArray,
+                                         startX: Double = tStartX, startY: Double = tStartY) {
         val body = this
         val segments = body.bodySegments.toList()
         assertEquals(expectedLengths.size, segments.size)
@@ -98,7 +104,7 @@ class BodyModelTest {
         BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
             .apply {
                 init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
-            }.assertBodySegments(
+            }.assertSegments(
                 tailLen = 2.0, expectedLengths = doubleArrayOf(1.0), expectedAngles = doubleArrayOf(tStartAngle)
             )
     }
@@ -113,7 +119,7 @@ class BodyModelTest {
         BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
             .apply {
                 init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
-            }.assertBodySegments(tailLen, doubleArrayOf(tailLen, len2),
+            }.assertSegments(tailLen, doubleArrayOf(tailLen, len2),
                 doubleArrayOf(tStartAngle, tStartAngle))
     }
 
@@ -237,8 +243,9 @@ class BodyModelTest {
         BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
             .apply {
                 init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
-                advance(len2, NO_ROTATE, 0.0)
-            }.assertBodySegments(
+                feed(FOODLENGTH_LARGE)
+                advance(len2, NO_ROTATE)
+            }.assertSegments(
                 tailLen, doubleArrayOf(1.5), doubleArrayOf(tStartAngle)
             )
     }
@@ -297,8 +304,8 @@ class BodyModelTest {
         BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
             .apply {
                 init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
-                advance(delta, NO_ROTATE, delta)
-            }.assertBodySegments(tailLen, doubleArrayOf(initLen),
+                advance(delta, NO_ROTATE)
+            }.assertSegments(tailLen, doubleArrayOf(initLen),
                 doubleArrayOf(tStartAngle),
                 tStartX + delta*cos(tStartAngle), tStartY + delta*cos(tStartAngle)
                 )
@@ -314,11 +321,13 @@ class BodyModelTest {
             .apply {
                 init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
                 // make 2 segments: advance without shorten, 2 segments of L=0.1
-                advance(delta, PI/2, 0.0)
-                // now continue straight, subtracting exact delta from tail
-                advance(delta, 0.0, delta)
+                feed(delta) // must leave start pos at the sstart
+                advance(delta, PI/2)
+                // now continue straight, subtracting exact delta from tail:
+                //   food is over, move end forward
+                advance(delta, 0.0)
 
-            }.assertBodySegments(tailLen,
+            }.assertSegments(tailLen,
                 doubleArrayOf(initLen * 2),
                 doubleArrayOf(tStartAngle + PI/2),
                 tStartX + delta*cos(tStartAngle),
@@ -337,8 +346,8 @@ class BodyModelTest {
         BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
             .apply {
                 init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
-                advance(delta, NO_ROTATE, delta)
-            }.assertBodySegments(tailLen, doubleArrayOf(0.3),
+                advance(delta, NO_ROTATE)
+            }.assertSegments(tailLen, doubleArrayOf(0.3),
                 doubleArrayOf(tStartAngle),
                 tStartX + delta*cos(tStartAngle), tStartY + delta*cos(tStartAngle)
             )
@@ -361,4 +370,115 @@ class BodyModelTest {
         assertEquals(angle.toFloat(), body.viewDirection, testFloatTolerance)
     }
 
+    ////////////////////////////////////
+    //  Test Feeding
+
+    /**
+     * advance bigger than feeding length
+     * */
+    @Test
+    fun `feed small advance greater`() {
+        val bodyLength = 10.0
+        val feed = 1.0
+        val advance = 3.0
+        val angle = 0.0// tStartAngle
+
+        // test on single segment
+        val body = BodyModel(TAILLEN_LARGE_100, 1.0, 1.0, 2.0).apply {
+            init(tStartX, tStartY, tStartZ, angle, bodyLength)
+        }
+
+        body.feed(feed)
+        body.advance(advance, NO_ROTATE)
+        body.assertSegments(TAILLEN_LARGE_100, doubleArrayOf(bodyLength + feed), doubleArrayOf(angle),
+            tStartX + (advance - feed) * cos(angle),
+            tStartY + (advance - feed) * sin(angle)
+            )
+    }
+
+    @Test
+    fun `feed small advance exact`() {
+        val bodyLength = 10.0
+        val feed = 1.0
+        val advance = 1.0
+
+        // test on single segment
+        val body = BodyModel(TAILLEN_LARGE_100, 1.0, 1.0, 2.0).apply {
+            init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength)
+        }
+
+        body.feed(feed)
+        body.advance(advance, NO_ROTATE)
+        body.assertSegments(TAILLEN_LARGE_100, doubleArrayOf(bodyLength + feed), doubleArrayOf(tStartAngle),
+            tStartX + (advance - feed) * cos(tStartAngle),
+            tStartY + (advance - feed) * sin(tStartAngle)
+        )
+    }
+
+    @Test
+    fun `feed small advance less multiple`() {
+        val bodyLength = 10.0
+        val feed = 1.5
+        val advance = 1.0
+
+        // test on single segment
+        val body = BodyModel(TAILLEN_LARGE_100, 1.0, 1.0, 2.0).apply {
+            init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength)
+        }
+
+        body.feed(feed)
+
+        // stay, increase body length
+        body.advance(advance, NO_ROTATE)
+        body.assertSegments(TAILLEN_LARGE_100, doubleArrayOf(bodyLength + advance), doubleArrayOf(tStartAngle),
+            tStartX, tStartY)
+
+        // moved forward really 0.5 (exhausted internal food)
+        body.advance(advance, NO_ROTATE)
+        body.assertSegments(TAILLEN_LARGE_100, doubleArrayOf(bodyLength + feed), doubleArrayOf(tStartAngle),
+            tStartX + (advance * 2 - feed) * cos(tStartAngle),
+            tStartY + (advance * 2 - feed) * sin(tStartAngle)
+        )
+
+        // moved 3, feed 1.5 , remains 1.5
+        body.advance(advance, NO_ROTATE)
+        body.assertSegments(TAILLEN_LARGE_100, doubleArrayOf(bodyLength + feed), doubleArrayOf(tStartAngle),
+            tStartX + (advance * 3 - feed) * cos(tStartAngle),
+            tStartY + (advance * 3 - feed) * sin(tStartAngle)
+        )
+    }
+
+    // init after food will reset the counter
+    @Test
+    fun `feed init resets`() {
+        val bodyLength = 10.0
+
+        // test on single segment
+        val body = BodyModel(TAILLEN_LARGE_100, 1.0, 1.0, 2.0).apply {
+            init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength)
+        }
+
+        body.feed(1.5)
+        body.init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength)
+        // as if feeding 0 - no increase in length
+        body.advance(1.0, NO_ROTATE)
+        assertEquals(bodyLength.toFloat(), body.bodySegments.first().length, testFloatTolerance)
+    }
+
+    @Test
+    fun `feed append`() {
+        val bodyLength = 10.0
+        val advance = 10.0
+
+        // test on single segment
+        val body = BodyModel(TAILLEN_LARGE_100, 1.0, 1.0, 2.0).apply {
+            init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength)
+        }
+
+        body.feed(1.0)
+        body.feed(2.0)
+        body.advance(advance, NO_ROTATE)
+        // far advance adds at once, will sum up
+        assertEquals((bodyLength + 3.0).toFloat(), body.bodySegments.first().length, testFloatTolerance)
+    }
 }
