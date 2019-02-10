@@ -69,6 +69,16 @@ class BodyModelCollisionTest {
         }
     }
 
+    private fun BodyModel.Collision.assertIs(ct: BodyModel.CollisionType) {
+        assertEquals(ct, this.type)
+    }
+
+    private fun BodyModel.Collision.assertCollidesObject() {
+        assertTrue(this.isColliding)
+        assertEquals(BodyModel.CollisionType.GAMEOBJECT, this.type)
+        assertNotNull(this.fieldObject)
+    }
+
     @Test
     fun `collision to objects`() {
         // TODO test by distance between head center and body end, not my proximity
@@ -101,21 +111,65 @@ class BodyModelCollisionTest {
     }
 
     /**
-     * the object is between head center and tail disk
+     * the object is between head center and head disk
      */
     @Test
     fun `collision to object past head center`() {
-        val bodyLen = 10.0
+        val w = 1000.0f
+        val h = 1000.0f
+        val bodyLen = 5.0
         val bodyRadius = 1.0
         val headRadius = 2.0
         val headOffset = 4.0
         val angle = PI / 2 // up ahead
 
-        val model = BodyModel(1.0, bodyRadius, headOffset, headRadius).apply {
-            init(0.0, 0.0, 0.0, angle, bodyLen)
+        val objR = 0.01 // very small for test purposes
+
+        val body = BodyModel(1.0, bodyRadius, headOffset, headRadius).apply {
+            init(5.0, 5.0, 0.0, angle, bodyLen)
         }
-        // last ring center: 0, 10
-        //
+
+        // check head sphere collision:
+        // ahead sphere
+        // in sphere
+        // behind sphere AND body center
+
+        // ahead head center and a bit outside radius
+        body.checkCollisions(TestScene(w, h, listOf(FO(5.0, 16.0 + objR*2, objR))))
+            .assertIs(BodyModel.CollisionType.NONE)
+
+        // little behind face center, inside body - this check must fail, really checked elsewhere
+        body.checkCollisions(TestScene(w, h, listOf(FO(5.0, 10.0 - 0.2, 0.1))))
+            .assertIs(BodyModel.CollisionType.NONE)
+
+        // ahead head center but within radius
+        body.checkCollisions(TestScene(w, h, listOf(FO(5.0, 15.0, objR))))
+            .assertCollidesObject()
+
+
+
+        // between head center and face ring center - AND does not touch head sphere
+        body.checkCollisions(TestScene(w, h, listOf(FO(5.0, 14.0 - headRadius - objR * 2, objR))))
+            .assertCollidesObject()
+
+        // exactly at head ring center
+        body.checkCollisions(TestScene(w, h, listOf(FO(5.0, 10.0, objR))))
+            .assertCollidesObject()
+
+        // Test touch neck:
+        // Offset from neck: [6.25, 11] is on neck line
+
+        // between head/ring centers and within the head cone - COLLIDES
+        body.checkCollisions(TestScene(w, h, listOf(FO(6.25 - 2 * objR, 11.0, objR))))
+            .assertCollidesObject()
+
+        // between head/ring centers and out of the head cone - NO collision
+        body.checkCollisions(TestScene(w, h, listOf(FO(6.25 + 2 * objR, 11.0, objR))))
+            .assertIs(BodyModel.CollisionType.NONE)
+
+        // also tricky - further ahead but within cone (out of head sphere)
+        body.checkCollisions(TestScene(w, h, listOf(FO(7.0, 15.0, objR))))
+            .assertIs(BodyModel.CollisionType.NONE)
     }
 
 

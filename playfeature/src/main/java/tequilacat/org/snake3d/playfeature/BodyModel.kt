@@ -1,6 +1,7 @@
 package tequilacat.org.snake3d.playfeature
 
 import java.util.*
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
@@ -42,6 +43,15 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
     /** head center Y coord */
     val headY get() = dHeadY.toFloat()
 
+    // center of face (end of last segment)
+    private var faceX: Double = 0.0
+    private var faceY: Double = 0.0
+    private var faceZ: Double = 0.0
+    private var faceR: Double = 0.0
+
+    private var headDirectionSinus: Double = 0.0
+    private var headDirectionCosinus: Double = 0.0
+
     /** direction of view and further direct movements */
     var viewDirection: Float = 0f
         private set
@@ -57,7 +67,7 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
         var dStartZ = 0.0
 
         private var dStartRadius = 0.0
-        private var dEndRadius = 0.0
+        var dEndRadius = 0.0
 
         override val alpha: Float = dAlpha.toFloat()
         override val alphaSinus: Float = sin(alpha)
@@ -121,7 +131,6 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
         processSegments()
     }
 
-
     // updates diameters, inserts if needed
     private fun processSegments() {
         // so far only extend is accounted for
@@ -162,8 +171,18 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
         }
         val last = bodySegmentsImpl.last()
 
-        dHeadX = last.dEndX + cos(last.dAlpha) * headOffset
-        dHeadY = last.dEndY + sin(last.dAlpha) * headOffset
+        // nose point
+        faceX = last.dEndX
+        faceY = last.dEndY
+        faceZ = last.dEndZ
+        faceR = last.dEndRadius
+
+        headDirectionSinus = sin(last.dAlpha)
+        headDirectionCosinus = cos(last.dAlpha)
+
+        dHeadX = last.dEndX + headDirectionCosinus * headOffset
+        dHeadY = last.dEndY + headDirectionSinus * headOffset
+
 
         viewDirection = last.dAlpha.toFloat()
     }
@@ -227,8 +246,38 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
     }
 
     private fun collidesHead(fieldObject: IFieldObject):Boolean {
-        return hypot(fieldObject.centerX - headX, fieldObject.centerY - headY) < fieldObject.radius + headRadius
+        val cx = fieldObject.centerX
+        val cy = fieldObject.centerY
+        val objR = fieldObject.radius
+
+        // check how near to the face ring->head center line:
+        // rotate obj center around last ring center, check distance to ring->head centers
+        // translate to face CS
+        val offX = cx - faceX
+        val offY = cy - faceY
+
+        // rotate around face center
+        val rotX = offX * headDirectionCosinus - offY * (-headDirectionSinus);
+        val rotY = offX * (-headDirectionSinus) + offY * headDirectionCosinus;
+
+        // after rotation, behind face center or ahead of head sphere
+        if(rotX < -objR || rotX > headOffset + headRadius + objR)
+            return false
+
+        // Test if between face and head we're close to neck than radius
+        // within neck (face-head segment): find radius at coords of tested obj
+        // foolproof for head offset 0
+        val neckR = faceR + if (headOffset == 0.0) 0.0 else (headRadius - faceR) * rotX / headOffset
+        // only if center is within neck
+        if (abs(rotY) - objR < neckR && rotX >= 0.0 && rotX < headOffset)
+            return true
+
+        if(hypot(cx - headX, cy - headY) < objR + headRadius)
+            return true
+
+        return false
     }
+
 
     fun checkCollisions(gameScene: IGameScene) : Collision {
         if (dHeadX + headRadius > gameScene.fieldWidth || dHeadX - headRadius < 0
