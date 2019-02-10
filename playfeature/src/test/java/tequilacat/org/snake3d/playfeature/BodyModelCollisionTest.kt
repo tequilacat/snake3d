@@ -23,13 +23,13 @@ class BodyModelCollisionTest {
     private val headAngle = PI / 6
 
 
-    private fun body(x: Double, y: Double): BodyModel {
+    private fun body(headCenterX: Double, headCenterY: Double): BodyModel {
         val bodyLen = 10.0
         val bodyRadius = 1.0
 
         val offset = bodyLen + headOffset
         return BodyModel(1.0, bodyRadius, headOffset, headR).apply {
-            init(x - cos(headAngle) * offset, y - sin(headAngle) * offset, 0.0, headAngle, bodyLen)
+            init(headCenterX - cos(headAngle) * offset, headCenterY - sin(headAngle) * offset, 0.0, headAngle, bodyLen)
         }
     }
 
@@ -61,11 +61,11 @@ class BodyModelCollisionTest {
         assertEquals(BodyModel.CollisionType.WALL, body(5.0,-1.0).checkCollisions(scene).type)
     }
 
-    private data class FO( override val centerX: Float, override val centerY: Float) : IFieldObject {
-        constructor(x: Double, y: Double) : this(x.toFloat(), y.toFloat())
+    private data class FO( override val centerX: Float, override val centerY: Float, override val radius: Float) : IFieldObject {
+        constructor(x: Double, y: Double, r: Double) : this(x.toFloat(), y.toFloat(), r.toFloat())
         override val type = IFieldObject.Type.OBSTACLE
         companion object {
-            val R = IFieldObject.Type.OBSTACLE.dblRadius
+            const val R = 1.0
         }
     }
 
@@ -79,12 +79,11 @@ class BodyModelCollisionTest {
 
         assertEquals(
             BodyModel.CollisionType.NONE,
-            body.checkCollisions(TestScene(10f, 10f, listOf(FO(0.0f, 0.0f)))).type)
+            body.checkCollisions(TestScene(10f, 10f, listOf(FO(0.0, 0.0, FO.R)))).type)
 
         val foFar = FO(
             headX + (headR + FO.R) * 1.1 * cos(headAngle),
-            headY + (headR + FO.R) * 1.1 * sin(headAngle)
-        )
+            headY + (headR + FO.R) * 1.1 * sin(headAngle), FO.R)
         // close but too far by exact distance:
         assertEquals(
             BodyModel.CollisionType.NONE,
@@ -92,8 +91,7 @@ class BodyModelCollisionTest {
 
         val foNear = FO(
             headX + (headR + FO.R) * 0.9 * cos(headAngle),
-            headY + (headR + FO.R) * 0.9 * sin(headAngle)
-        )
+            headY + (headR + FO.R) * 0.9 * sin(headAngle), FO.R)
 
         body.checkCollisions(TestScene(10f, 10f, listOf(foNear))).apply {
             assertTrue(this.isColliding)
@@ -101,6 +99,25 @@ class BodyModelCollisionTest {
             assertEquals(foNear, this.fieldObject)
         }
     }
+
+    /**
+     * the object is between head center and tail disk
+     */
+    @Test
+    fun `collision to object past head center`() {
+        val bodyLen = 10.0
+        val bodyRadius = 1.0
+        val headRadius = 2.0
+        val headOffset = 4.0
+        val angle = PI / 2 // up ahead
+
+        val model = BodyModel(1.0, bodyRadius, headOffset, headRadius).apply {
+            init(0.0, 0.0, 0.0, angle, bodyLen)
+        }
+        // last ring center: 0, 10
+        //
+    }
+
 
     @Test
     fun `collision to self`() {

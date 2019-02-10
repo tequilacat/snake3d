@@ -227,7 +227,7 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
     }
 
     private fun collidesHead(fieldObject: IFieldObject):Boolean {
-        return hypot(fieldObject.centerX - headX, fieldObject.centerY - headY) < fieldObject.type.radius + headRadius
+        return hypot(fieldObject.centerX - headX, fieldObject.centerY - headY) < fieldObject.radius + headRadius
     }
 
     fun checkCollisions(gameScene: IGameScene) : Collision {

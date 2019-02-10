@@ -120,10 +120,10 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
     private val pickableGeometry: Geometry = PrimitiveBuilder.makePrism(
         0f, 0f, 0f,
-        IFieldObject.Type.PICKABLE.radius * 4, IFieldObject.Type.PICKABLE.radius, 12, true, true)
+        Game.R_PICKABLE.toFloat() * 4, Game.R_PICKABLE.toFloat(), 12, true, true)
 
     private val obstacleGeometry: Geometry = PrimitiveBuilder.makePrism(0f, 0f, 0f,
-        IFieldObject.Type.PICKABLE.radius * 3, IFieldObject.Type.OBSTACLE.radius, 12, true, true)
+        Game.R_OBSTACLE.toFloat() * 3, Game.R_OBSTACLE.toFloat(), 12, true, true)
 
     private lateinit var obstacleGeometryBuffer: GeometryBuffer
     private lateinit var pickableGeometryBuffer: GeometryBuffer

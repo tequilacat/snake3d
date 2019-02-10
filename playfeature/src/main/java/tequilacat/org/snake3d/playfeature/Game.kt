@@ -32,6 +32,9 @@ class Game(private val addObstacles: Boolean = true) {
 
         const val BODY_UNIT = R_HEAD.toFloat() * 2
 
+        const val R_OBSTACLE = 1.0
+        const val R_PICKABLE = 1.0
+
         private const val FIELD_SAFEMARGIN = R_HEAD * 4 // margin along sizes not seeded by objects
 
         private const val SPEED_M_NS = 10.0 / 1_000 // 10 m/s
@@ -51,9 +54,10 @@ class Game(private val addObstacles: Boolean = true) {
         private const val FEED_SIZE = R_HEAD * 2
     }
 
-    private class GameObject(override val type: IFieldObject.Type, private val centerDblX: Double, private val centerDblY: Double) : IFieldObject {
-        val radius = type.radius
-
+    private class GameObject(override val type: IFieldObject.Type,
+                             private val centerDblX: Double, private val centerDblY: Double,
+                             private val dblRadius: Double) : IFieldObject {
+        override val radius = dblRadius.toFloat()
         override val centerX = centerDblX.toFloat()
         override val centerY = centerDblY.toFloat()
 
@@ -204,12 +208,12 @@ class Game(private val addObstacles: Boolean = true) {
             val fieldHeight = level.fieldHeight
 
             for (pair in listOf(
-                Pair(IFieldObject.Type.PICKABLE, level.pickableCount),
-                Pair(IFieldObject.Type.OBSTACLE, level.obstacleCount)
+                Triple(IFieldObject.Type.PICKABLE, R_PICKABLE, level.pickableCount),
+                Triple(IFieldObject.Type.OBSTACLE, R_OBSTACLE, level.obstacleCount)
             )) {
-                val newObjRadius = pair.first.dblRadius
+                val newObjRadius = pair.second
 
-                for (i in 0 until pair.second) {
+                for (i in 0 until pair.third) {
                     var tries = 20 // if cannot find a free cell for 20 tries we fail miserably
                     var objX: Double
                     var objY: Double
@@ -226,7 +230,7 @@ class Game(private val addObstacles: Boolean = true) {
                         throw IllegalArgumentException("Cannot randomly place that much game objects")
                     }
 
-                    fieldObjectsImpl.add(GameObject(pair.first, objX, objY))
+                    fieldObjectsImpl.add(GameObject(pair.first, objX, objY, pair.second))
                 }
             }
         }

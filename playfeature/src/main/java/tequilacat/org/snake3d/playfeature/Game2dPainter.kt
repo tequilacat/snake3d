@@ -85,7 +85,7 @@ class Game2dPainter {
 
         c.drawCircle(
             (gameObject.centerX * ratio).toFloat(), (gameObject.centerY * ratio).toFloat(),
-            (gameObject.type.radius * ratio).toFloat(), fillPainter)
+            (gameObject.radius * ratio).toFloat(), fillPainter)
     }
 
     object Paints {
