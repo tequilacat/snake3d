@@ -51,16 +51,13 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         val rgb by lazy { rgbInt.toColorArray() }
     }
 
-    /** vysota v holke - 2 head radiuses */
-    private fun bodyUnit() = (GameGeometry.R_HEAD * 2f).toFloat()
-
     // positioned according to currently used skybox images
     private val LIGHT_POSITION = floatArrayOf(0f, 100f, 20f, 1f)
 
     // defines FOV
     private val nearPlaneDist = 1.2f
     // how far behind the head the eye is
-    private val eyeRearDistance = bodyUnit() * 5
+    private val eyeRearDistance = Game.BODY_UNIT * 5
 
 //    private val debugScene: DebugScene? = DebugScene()
     private val debugScene: DebugScene? = null
@@ -82,8 +79,8 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         AbstractDrawableGameObject(painter, ObjectContext(ObjColors.BODY.rgb, bodyTextureId)) {
 
         // start texture V at bottom lowest point (3 * PI / 2)
-        private val bodyShape = BodyShape(10, GameGeometry.R_HEAD.toFloat(), 3 * PI.toFloat() / 2,
-            //1/(2 * PI / GameGeometry.R_HEAD).toFloat(),
+        private val bodyShape = BodyShapeBuilder(10,
+            3 * PI.toFloat() / 2,
             0.2f, // for yellow brown
             //0.5f, // good for grayscale
             0f) as IBodyGeometryBuilder
@@ -189,7 +186,8 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             floorGeometryBuffer.release()
         }
 
-        floorGeometryBuffer = GeometryBuffer(makeFloor(game.scene.fieldWidth, game.scene.fieldHeight, bodyUnit() * 3, true))
+        floorGeometryBuffer = GeometryBuffer(makeFloor(game.scene.fieldWidth, game.scene.fieldHeight,
+            Game.BODY_UNIT * 3, true))
         gameObjects.add(
             DrawableGameObject(
                 floorGeometryBuffer,
@@ -242,10 +240,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
             val viewSin = sin(game.scene.bodyModel.viewDirection)
             val viewCos = cos(game.scene.bodyModel.viewDirection)
-
-            val eyeH = bodyUnit() * 3
-            // val head = game.scene.bodySegments.last()
-
+            val eyeH = Game.BODY_UNIT * 3
             val cx: Float = game.scene.bodyModel.headX- viewCos * eyeRearDistance
             val cy: Float = game.scene.bodyModel.headY - viewSin * eyeRearDistance
 
@@ -255,8 +250,6 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
                 cx + viewCos, cy + viewSin, eyeH,
                 0f, 0.0f, 1.0f
             )
-
-            // headObj!!.position(head.endX, head.endY, 0f, head.alpha)
         }
 
         // compute light in eye pos

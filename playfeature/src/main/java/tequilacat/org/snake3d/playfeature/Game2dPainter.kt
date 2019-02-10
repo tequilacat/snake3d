@@ -14,7 +14,6 @@ class Game2dPainter {
                        lastRoll: Float, tiltRange: Float, effRotateAngle: Float) {
         c.drawColor(0xff3affbd.toInt())
 
-        val R_HEAD = GameGeometry.R_HEAD.toFloat()
         // fit width to screen: pix to logic
         val ratio: Float = (viewWidth / gameScene.fieldWidth)
 
@@ -30,16 +29,17 @@ class Game2dPainter {
             val x1 = (segment.endX * ratio)
             val y1 = (segment.endY * ratio)
             c.drawLine(x0, y0, x1, y1, Paints.bodyPaint)
-            c.drawCircle(x0, y0, R_HEAD / 2 * ratio, Paints.bodyPaint)
+            c.drawCircle(x0, y0, segment.startRadius / 2 * ratio, Paints.bodyPaint)
         }
 
+        val headRadius = gameScene.bodyModel.bodySegments.last().endRadius
         val headX = gameScene.bodyModel.headX * ratio
         val headY = gameScene.bodyModel.headY * ratio
         // drawGameFrame head with direction as
-        c.drawCircle(headX, headY, R_HEAD * ratio, Paints.headPaint)
+        c.drawCircle(headX, headY, headRadius * ratio, Paints.headPaint)
         c.drawLine(
-            headX, headY, (headX + R_HEAD * ratio * cos(gameScene.bodyModel.viewDirection)),
-            (headY + R_HEAD * ratio * sin(gameScene.bodyModel.viewDirection)), Paints.linePaint
+            headX, headY, (headX + headRadius * ratio * cos(gameScene.bodyModel.viewDirection)),
+            (headY + headRadius * ratio * sin(gameScene.bodyModel.viewDirection)), Paints.linePaint
         )
 
         // c.drawText(dbgStatus, 0f, fieldHeight * ratio + Paints.linePaint.textSize, Paints.linePaint)

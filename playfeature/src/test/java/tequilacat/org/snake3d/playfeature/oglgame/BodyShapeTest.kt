@@ -11,9 +11,6 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 class BodyShapeTest {
-
-    private val testRadius = 1f
-
     class TB(private val startX: Double, private val startY: Double, private val floorZ: Double) {
 
         private class TBS(
@@ -35,11 +32,6 @@ class BodyShapeTest {
 
             override val alphaSinus = sin(alpha)
             override val alphaCosinus = cos(alpha)
-
-//            constructor(dblStartX: Double, dblStartY: Double, dblStartZ: Double,
-//                        angle: Double, length: Double)
-//                    : this(dblStartX.toFloat(), dblStartY.toFloat(), dblStartZ.toFloat(),
-//                length.toFloat(), 0f, 0f, angle.toFloat())
 
             init {
                 computeEnd()
@@ -65,66 +57,6 @@ class BodyShapeTest {
             return this
         }
     }
-
-    // TODO remove bodyShape() method
-    //private fun bodyShape() = BodyShape(4, testRadius,0f,1f, 0f)
-
-    // TODO remove BodySegment testclass
-    class BodySegment(
-        override val startX: Float,
-        override val startY: Float,
-        override val startZ: Float,
-        override val length: Float,
-        override val startRadius: Float,
-        override val endRadius: Float,
-        override val alpha: Float
-    ) : IBodySegmentModel {
-
-        override var endX: Float = 0f
-        override var endY: Float = 0f
-        override var endZ: Float = 0f
-
-        override val alphaSinus = sin(alpha)
-        override val alphaCosinus = cos(alpha)
-
-        constructor(dblStartX: Double, dblStartY: Double, dblStartZ: Double,
-                  angle: Double, length: Double)
-                : this(dblStartX.toFloat(), dblStartY.toFloat(), dblStartZ.toFloat(),
-            length.toFloat(), 0f, 0f, angle.toFloat())
-
-        init {
-            computeEnd()
-        }
-
-        private fun computeEnd() {
-            endX = startX + length * alphaCosinus
-            endY = startY + length * alphaSinus
-            endZ = startZ
-        }
-    }
-
-    fun MutableList<IBodySegmentModel>.append(
-        angle: Double,
-        length: Double,
-        angleRelative: Boolean = true
-    ): MutableList<IBodySegmentModel> {
-
-        val last = this.last()
-        this.add(
-            BodySegment(
-                last.endX.toDouble(), last.endY.toDouble(), last.endZ.toDouble(),
-                angle + if (angleRelative) last.alpha else 0f, length
-            )
-        )
-        return this
-    }
-
-    /**
-     * adds count copies of last element
-     */
-    private fun expandBy(list: MutableList<BodySegment>, count: Int) =
-        1.rangeTo(count).forEach { _ -> list.add(list.last()) }
-
 
     @Test
     fun `build basicfeatures`() {
@@ -174,7 +106,7 @@ class BodyShapeTest {
     @Test
     fun `counts and array reallocation`() {
         val makeSegments = {i:Int -> TB(0.0, 0.0, 0.0).run {
-            (1..i).forEach { add(1.0, 1.0, 0.0) }
+            (1..i).forEach { _ -> add(1.0, 1.0, 0.0) }
             this
         }.segments}
 
@@ -236,33 +168,6 @@ class BodyShapeTest {
         // 3 segments, all have Z
         (0 until segments.size).forEach {
             assertEquals(sin(startAngle1) + 1,
-                geometry.vertexes[(1 + nFaces * it) * geometry.vertexFloatStride + 2],
-                testFloatTolerance)
-        }
-    }
-
-
-    /**
-     * how the start angle affects vertex positions in section
-     */
-    @Test
-    fun `_old vertex ring start`() {
-        val nFaces = 5
-        val segments = mutableListOf<IBodySegmentModel>(
-            BodySegment(0.0, 0.0, 0.0, 0.0, 10.0))
-            .append(PI / 4, 10.0, true)
-            .append(PI / 4, 10.0, true)
-
-        val startAngle1 = 1.0f // just some angle in Q1
-        // make 5 so Z is never repeated for same section
-        val bodyShape =  BodyShape(nFaces, testRadius, startAngle1, 10f, 0f)
-                bodyShape.update(segments)
-        val geometry = bodyShape.geometry
-
-        // 3 main segments + 2 smaller rings - we check main segments only
-        // 1 + nRing*4 (starting) - all Z coords are sin(startAngle)
-        (1..3).forEach {
-            assertEquals(sin(startAngle1),
                 geometry.vertexes[(1 + nFaces * it) * geometry.vertexFloatStride + 2],
                 testFloatTolerance)
         }
@@ -376,78 +281,12 @@ class BodyShapeTest {
         ), 3)
     }
 
-    // check vertex count for single segment
-    @Test
-    fun `_old vertex coordinates`() {
-        val segments = mutableListOf(BodySegment(0.0, 0.0, testRadius.toDouble(),
-            0.0, 10.0))
-
-        val builder =  BodyShape(4, testRadius,0f,1f, 0f)
-        builder.update(segments)
-
-        // Vertexes (single segment) - 4 on each side, 4 in intermediate to ends, 1+1 ends
-        // 18 vertexes
-        // compare provided count, not size of array since it's allocated in advance
-        assertEquals(2 + (segments.size + 3) * builder.segmentFaceCount, builder.geometry.vertexCount)
-
-        // add rotated segment
-        segments.add(
-            BodySegment(
-                segments.first().endX.toDouble(),
-                segments.first().endY.toDouble(),
-                segments.first().endZ.toDouble(),
-                PI / 4, 10.0))
-        builder.update(segments)
-        assertEquals(2 + (segments.size + 3) * builder.segmentFaceCount, builder.geometry.vertexCount)
-
-        val sin45 = sin(PI / 4).toFloat()
-        val sinPi8 = sin(PI / 8).toFloat()
-        val cosPi8 = cos(PI / 8).toFloat()
-
-        // now examine deeper the expected 3d coords:
-        // first vertex (tail)
-        assertVertexData(builder.geometry, 0,0,
-            floatArrayOf(-testRadius, 0f, testRadius), 3)
-
-        // skip starting intermediate ring as it's to be adjusted for better visuals
-
-        // test vertexes at starting 1st segment: 5,6,7,8,
-        // then joining
-        assertVertexData(builder.geometry, 5,0, floatArrayOf(
-            0f, -testRadius, testRadius, 0f, 0f, testRadius*2, 0f, testRadius, testRadius, 0f, 0f, 0f,
-            // joint (rotated by pi/8) aka start last segment
-            10 + sinPi8 * testRadius, -cosPi8 * testRadius, testRadius,
-            10f, 0f, testRadius*2,
-            10 - sinPi8 * testRadius, cosPi8 * testRadius, testRadius,
-            10f, 0f, 0f,
-            // end of head
-            10 + 10 * sin45 + testRadius * sin45, 10 * sin45 - testRadius * sin45, testRadius,
-            10 + 10 * sin45, 10 * sin45, testRadius*2,
-            10 + 10 * sin45 - testRadius * sin45, 10 * sin45 + sin45, testRadius,
-            10 + 10 * sin45, 10 * sin45, 0f
-        ), 3)
-
-
-        // last one (nose)
-        assertVertexData(builder.geometry, builder.geometry.vertexCount - 1,0, floatArrayOf(
-            10 + 10 * sin45 + testRadius * sin45, 10 * sin45 + testRadius * sin45, testRadius
-        ), 3)
-    }
-
     /**
      * test that each vertex in a triangle has same normal which is normalized -
      * dont compar to the normal of its triangle!
      * */
     @Test
     fun normals() {
-//        val geometry =  BodyShape(4, testRadius,0f,1f, 0f).run {
-//            update(mutableListOf<IBodySegmentModel>(
-//                BodySegment(0.0, 0.0, testRadius.toDouble(), 0.0, 10.0))
-//                .append(PI / 4, 10.0, true)
-//            )
-//            geometry
-//        }
-
         val r1 = 1f
         val l1 = 5f
         val l2 = 5f
@@ -482,73 +321,7 @@ class BodyShapeTest {
             getNormal(5), testFloatTolerance)
     }
 
-    /**
-     * test that each vertex in a triangle has same normal which is normalized -
-     * dont compar to the normal of its triangle!
-     * */
-    @Test
-    fun `_old normals`() {
-        val geometry =  BodyShape(4, testRadius,0f,1f, 0f).run {
-            update(mutableListOf<IBodySegmentModel>(
-                BodySegment(0.0, 0.0, testRadius.toDouble(), 0.0, 10.0))
-                .append(PI / 4, 10.0, true)
-            )
-            geometry
-        }
-
-        for (vi in 0 until geometry.vertexCount step geometry.vertexFloatStride) {
-            assertEquals("Bad normal at vi=$vi", 1f, CoordUtils.length(geometry.vertexes, vi + 5), 0.0001f) // tolerance
-        }
-
-        val getNormal = { index: Int ->
-            val pos = index * geometry.vertexFloatStride + 5
-            floatArrayOf(geometry.vertexes[pos], geometry.vertexes[pos + 1], geometry.vertexes[pos + 2])
-        }
-
-        val sin45 = sin(PI / 4).toFloat()
-
-        assertArrayEquals(floatArrayOf(-1f, 0f, 0f), getNormal(0), testFloatTolerance)
-        assertArrayEquals(
-            floatArrayOf(cos(3 * PI / 8).toFloat(), -sin(3 * PI / 8).toFloat(), 0f),
-            getNormal(9), testFloatTolerance)
-        assertArrayEquals(floatArrayOf(sin45, sin45, 0f), getNormal(21), testFloatTolerance)
-    }
-
-    /**
-     * due to bug, end stub ring differs from intermediate ring
-     */
-//    @Test
-//    fun `intermediate ring equals last ring`() {
-//        val getCoords = { g: Geometry, indexes: Iterable<Int> ->
-//            indexes.map { idx ->
-//                val pos = idx * g.vertexFloatStride
-//                listOf(g.vertexes[pos], g.vertexes[pos + 1], g.vertexes[pos + 2])
-//            }.flatten()
-//        }
-//
-//        val geom1 = BodyShape(4, testRadius,0f,1f, 0f).run {
-//            update(mutableListOf<IBodySegmentModel>(
-//                BodySegment(
-//                    10.0, 4.0, 1.0,
-//                    PI/4, 2.0)))
-//            geometry
-//        }
-//        val v1 = getCoords(geom1, (0..12))
-//
-//        val geom2 = BodyShape(4, testRadius,0f,1f, 0f).run {
-//            update(mutableListOf<IBodySegmentModel>(
-//                BodySegment(
-//                    10.0, 4.0, 1.0,
-//                    PI/4, 2.0))
-//                .append(PI/4, 2.0, false))
-//            geometry
-//        }
-//
-//        val v2 = getCoords(geom2, (0..12))
-//        assertArraysEqual(v1.toFloatArray(), v2.toFloatArray())
-//    }
-
-    fun customAssertRingU(ringIndex: Int, geometry: Geometry, nFaceSegments: Int, uExpected: Float) {
+    private fun customAssertRingU(ringIndex: Int, geometry: Geometry, nFaceSegments: Int, uExpected: Float) {
         val vIndex = nFaceSegments * ringIndex + 1
         (0 until nFaceSegments).forEach {
             assertEquals("Ring #$ringIndex, vertex #$it",
@@ -615,51 +388,6 @@ class BodyShapeTest {
     }
 
     /**
-     * test that each segment starting FROM NOSE (backward) has U (x)
-     * according to length and runLength coeff
-     */
-    @Test
-    fun `_old texture U`() {
-        val uPer1Length = 0.1f // 1
-        val nFaceSegments = 4
-        val segment = mutableListOf<IBodySegmentModel>(
-            BodySegment(0.0, 0.0, 0.0, 0.0, 1.0))
-            .append(PI / 4, 0.3, true)
-            .append(-PI / 4, 1.0, true)
-
-        val geometry =  BodyShape(nFaceSegments, 0.5f, 0f, uPer1Length, 0f).run {
-            update(segment);geometry}
-
-        // 3 segments, 6 rings (0-5), check main rings
-        val checkRing = { ringIndex: Int, uExpected: Float ->
-            val vIndex = nFaceSegments * ringIndex + 1
-            (0 until nFaceSegments).forEach {
-                assertEquals("Ring #$ringIndex, vertex #$it",
-                    uExpected,
-                    geometry.vertexes[(vIndex + it) * geometry.vertexFloatStride + 3],
-                    testFloatTolerance
-                )
-            }
-        }
-        // check U (V) - from head to tail, the ring texture maps to run length
-
-        // tailpoint - v#0
-        assertEquals(0.05f + 0.1f + 0.03f + 0.1f + 0.05f, geometry.vertexes[3], testFloatTolerance)
-        // check nose (last vertex) is 0
-        assertEquals(0f, geometry.vertexes[geometry.vertexCount*geometry.vertexFloatStride - 5], testFloatTolerance)
-
-        // nose/tail are 0.7R from segment end points
-        checkRing(5, 0.05f - 0.05f * 0.7f) // nose small ring
-
-        checkRing(4, 0.05f) // nose ring
-        checkRing(3, 0.05f + 0.1f)
-        checkRing(2, 0.05f + 0.1f + 0.03f) // nose ring
-        checkRing(1, 0.05f + 0.1f + 0.03f + 0.1f) // nose ring
-
-        checkRing(0, 0.05f + 0.1f + 0.03f + 0.1f + 0.05f * 0.7f) // tail small ring
-    }
-
-    /**
      * test that each point has its assigned V according to start U angle.
      * assume texture is painted from top point (V = 0) down (V = 1)
      */
@@ -682,34 +410,6 @@ class BodyShapeTest {
 
         // for 2 segments
         for (nRing in 0..1) {
-            val ringVI = 1 + nRing * nFaceSegments
-            assertArrayEquals(expectedV,
-                (0 until nFaceSegments).map { fsi ->
-                    geometry.vertexes[(ringVI + fsi) * geometry.vertexFloatStride + 4]
-                }.toFloatArray(), testFloatTolerance)
-        }
-
-        // nose and tail have 0.5 so far - TODO understand what to put here
-        assertEquals(0.5f, geometry.vertexes[4])
-        assertEquals(0.5f, geometry.vertexes[geometry.vertexCount*geometry.vertexFloatStride - 4])
-    }
-
-    /**
-     * test that each point has its assigned V according to start U angle.
-     * assume texture is painted from top point (V = 0) down (V = 1)
-     */
-    @Test
-    fun `_old texture V`() {
-        val nFaceSegments = 10
-        val geometry = BodyShape(nFaceSegments, 0.5f, 3 * PI.toFloat() / 2, 1f, 0f).run {
-            update(mutableListOf<IBodySegmentModel>(
-                BodySegment(0.0, 0.0, 0.0, 0.0, 1.0)
-            ));geometry
-        }
-
-        val expectedV = FloatArray(10) { it * 0.1f}
-
-        for (nRing in 0..3) {
             val ringVI = 1 + nRing * nFaceSegments
             assertArrayEquals(expectedV,
                 (0 until nFaceSegments).map { fsi ->

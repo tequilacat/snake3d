@@ -2,21 +2,12 @@ package tequilacat.org.snake3d.playfeature
 
 import android.graphics.RectF
 import android.os.SystemClock
-import tequilacat.org.snake3d.playfeature.GameGeometry.Companion.R_HEAD
-import java.util.*
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlin.random.Random
 
 /**
  * stores all logic and data of game field
  */
 class Game(private val addObstacles: Boolean = true) {
-    // state - as enum
-    //var dbgStatus: String = "none"
-
-    /// level data
-    // TODO make Level class private
     private data class Level(val fieldWidth: Double, val fieldHeight: Double, val pickableCount: Int, val obstacleCount: Int)
     private val levels = listOf(Level(100.0, 100.0, 20, 5))
     private var currentLevelIndex = 0
@@ -37,23 +28,27 @@ class Game(private val addObstacles: Boolean = true) {
 
     companion object {
         // Assume SI: meters, seconds
+        private const val R_HEAD = 1.0
 
-        const val FIELD_SAFEMARGIN = R_HEAD * 4 // margin along sizes not seeded by objects
+        const val BODY_UNIT = R_HEAD.toFloat() * 2
 
-        const val SPEED_M_NS = 10.0 / 1_000 // 10 m/s
+        private const val FIELD_SAFEMARGIN = R_HEAD * 4 // margin along sizes not seeded by objects
+
+        private const val SPEED_M_NS = 10.0 / 1_000 // 10 m/s
 
         // 10 degrees per head diameter
-        const val ROTATE_ANGLE_PER_LEN = (Math.PI / 5) / (R_HEAD * 2)
+        private const val ROTATE_ANGLE_PER_LEN = (Math.PI / 5) / (R_HEAD * 2)
 
         // no faster than 50 FPS - 20 ms
-        val MIN_STEP_MS: Long = 20 // milliseconds
+        private val MIN_STEP_MS: Long = 20 // milliseconds
 
         // device rotation within +- threshold does not cause turns
-        const val TILT_THRESHOLD = 5.0
+        private const val TILT_THRESHOLD = 5.0
 
-        const val FLOOR_Z = 0.0
-        const val BODY_INIT_LEN = R_HEAD * 4
-        const val BODY_TAIL_LEN = R_HEAD * 3
+        private const val FLOOR_Z = 0.0
+        private const val BODY_INIT_LEN = R_HEAD * 4
+        private const val BODY_TAIL_LEN = R_HEAD * 8
+        private const val FEED_SIZE = R_HEAD * 2
     }
 
     private class GameObject(override val type: IFieldObject.Type, private val centerDblX: Double, private val centerDblY: Double) : IFieldObject {
@@ -102,12 +97,6 @@ class Game(private val addObstacles: Boolean = true) {
         if(!addObstacles) {
             sceneImpl.fieldObjectsImpl.clear()
         }
-    }
-
-    /// updates state controlled by device position
-    fun updatePositionalControls(azimuth: Float, pitch: Float, roll: Float) {
-//        dbgStatus = "${azimuth.f(3)} / ${pitch.f(3)} / ${roll.f(3)}"
-        lastRoll = roll.toDouble()
     }
 
     private fun getEffectiveRotateAngle(gameControlImpulse: GameControlImpulse? = null) = when {
@@ -169,7 +158,7 @@ class Game(private val addObstacles: Boolean = true) {
                 }
                 IFieldObject.Type.PICKABLE -> {
                     scene.remove(collidingObj)
-                    scene.bodyModel.feed(collidingObj.type.radius.toDouble() * 2)
+                    scene.bodyModel.feed(FEED_SIZE)
                     tickResult = TickResult.CONSUME
                 }
                 else -> tickResult = TickResult.MOVE

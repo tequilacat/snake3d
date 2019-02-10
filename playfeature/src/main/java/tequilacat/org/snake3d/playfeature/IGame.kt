@@ -3,7 +3,7 @@ package tequilacat.org.snake3d.playfeature
 class GameGeometry {
     companion object {
         // TODO hide geometry radiuses in BodyModel after reworking BodyShape
-        const val R_HEAD = 1.0
+        //const val R_HEAD = 1.0
         const val R_OBSTACLE = 1.0
         const val R_PICKABLE = 1.0
     }

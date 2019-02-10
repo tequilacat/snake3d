@@ -8,8 +8,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 import org.junit.Assert.*
-import tequilacat.org.snake3d.playfeature.oglgame.BodyShape
-import kotlin.math.PI
 
 /**
  * Instrumented test, which will execute on an Android device.
@@ -25,7 +23,7 @@ class ExampleInstrumentedTest {
         assertEquals("tequilacat.org.snake3d.playfeature.test", appContext.packageName)
     }
 
-
+/*
     @Test
     fun measureUpdatePerformance() {
         val testRadius = 1f
@@ -48,5 +46,5 @@ class ExampleInstrumentedTest {
         Log.d("perf", "Total: ${(t1-t0)} ms")
         Log.d("perf", "Per invocation: ${(t1-t0) / count.toFloat()} ms")
     }
-
+*/
 }
