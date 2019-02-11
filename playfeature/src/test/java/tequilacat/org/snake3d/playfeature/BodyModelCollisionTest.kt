@@ -2,9 +2,7 @@ package tequilacat.org.snake3d.playfeature
 
 import org.junit.Assert.*
 import org.junit.Test
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+import kotlin.math.*
 
 class BodyModelCollisionTest {
 
@@ -35,12 +33,64 @@ class BodyModelCollisionTest {
 
     /**
      * tests whether the test code works OK :)
+     * once tested
      */
     @Test
     fun `test test harness`() {
         val body = body(5.0, 5.0)
         assertEquals((5 - cos(headAngle) * headOffset).toFloat(), body.bodySegments.last().endX, testFloatTolerance)
         assertEquals((5 - sin(headAngle) * headOffset).toFloat(), body.bodySegments.last().endY, testFloatTolerance)
+    }
+
+    private fun initByCoords(radius: Double, headOffset: Double, headRadius: Double, vararg coords: Double): BodyModel {
+        //val model = this
+        val floorZ = 0.0
+
+        var lastX = coords[0]
+        var lastY = coords[1]
+
+        val firstSegmentLen = hypot(coords[2]-coords[0], coords[3] - coords[1])
+        val model = BodyModel(firstSegmentLen, radius, headOffset, headRadius)
+
+        for (i in 2 until coords.size step 2) {
+
+            val x = coords[i]
+            val y = coords[i+1]
+
+            val angle = atan2(y - lastY, x - lastX)
+            val length = hypot(y - lastY, x - lastX)
+
+            if(i == 2) {
+                model.init(lastX, lastY, floorZ, angle, length)
+                // never shrink
+                model.feed(1000000.0)
+            } else {
+                model.advance(length, angle - model.viewDirection)
+            }
+
+            lastX = x
+            lastY = y
+        }
+
+        // self test: all coords must be exactly same - set tail length to extra larg
+        assertEquals(coords.size / 2 - 1, model.bodySegments.size)
+
+        val tolerance = 0.001f
+        var i = 0
+        for(segment in model.bodySegments){
+            assertEquals(coords[i].toFloat(), segment.startX, tolerance)
+            assertEquals(coords[i+1].toFloat(), segment.startY, tolerance)
+
+            if (i + 2 < coords.size) {
+                assertEquals(coords[i + 2].toFloat(), segment.endX, tolerance)
+                assertEquals(coords[i + 3].toFloat(), segment.endY, tolerance)
+            }
+
+            i += 2
+        }
+
+        assertEquals(model.bodySegments.last().endRadius, radius.toFloat(), testFloatTolerance)
+        return model
     }
 
     // active zone is head
@@ -67,6 +117,14 @@ class BodyModelCollisionTest {
         companion object {
             const val R = 1.0
         }
+    }
+
+    private fun BodyModel.Collision.assertNone() {
+        assertEquals(BodyModel.CollisionType.NONE, this.type)
+    }
+
+    private fun BodyModel.Collision.assertSelf() {
+        assertEquals(BodyModel.CollisionType.SELF, this.type)
     }
 
     private fun BodyModel.Collision.assertIs(ct: BodyModel.CollisionType) {
@@ -172,21 +230,301 @@ class BodyModelCollisionTest {
             .assertIs(BodyModel.CollisionType.NONE)
     }
 
+    @Test
+    fun `self no curves no collisions`() {
+        // trivial
+        body(5.0, 5.0).checkCollisions(TestScene(100f,100f))
+            .assertIs(BodyModel.CollisionType.NONE)
+
+        // test that closest and smallest segments do not trigger collision
+        // 11 segments by 0.2r
+
+        BodyModel(1000.0, 1.0, 1.0, 1.0).apply {
+            init(10.0, 10.0, 10.0, 0.0, 0.2)
+            advance(0.2, 0.01)
+            advance(0.2, -0.01)
+            advance(0.2, 0.01)
+            advance(0.2, -0.01)
+            advance(0.2, 0.01)
+            advance(0.2, -0.01)
+            advance(0.2, 0.01)
+            advance(0.2, -0.01)
+            advance(0.2, 0.01)
+            advance(0.2, -0.01)
+        }.checkCollisions(TestScene(1000f,1000f))
+            .assertNone()
+
+        // check that no-neck head does not collide with vertebra behind:
+        // head semisphere behind face coords must not collide
+
+        // TODO test and fix collision to sphere behind face ring
+        BodyModel(1000.0, 1.0, 0.0, 1.0).apply {
+            init(10.0, 10.0, 10.0, 0.0, 0.2)
+            advance(0.2, 0.01)
+            advance(0.2, 0.01)
+            advance(0.2, 0.01)
+            advance(0.2, 0.01)
+        }.checkCollisions(TestScene(1000f,1000f))
+            .assertNone()
+
+    }
+
+    /**
+     *
+     */
+    @Test
+    fun `self tail point out of neck`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 2.0
+        val radius = 1.0
+        val margin = 0.01
+
+
+        initByCoords(
+            radius, hOffset, hRadius,
+            52.0, 52.0, // out of cone clearly: no collision
+            100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertNone()
+    }
+
+    /**
+     *
+     */
+    @Test
+    fun `self tail point ahead of head`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 2.0
+        val radius = 1.0
+        val margin = 0.01
+
+
+        initByCoords(
+            radius, hOffset, hRadius,
+            50.0, 48.0 - margin, // ahead of head
+            100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertNone()
+    }
+
+    /**
+     *
+     */
+    @Test
+    fun `self tail point little out of neck`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 3.0
+        val radius = 1.0
+        val margin = 0.01
+
+        initByCoords(
+            radius, hOffset, hRadius,
+            52 + margin, 55.0, // almost touching cone but little outside
+            100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertNone()
+    }
+
+    /**
+     *
+     */
+    @Test
+    fun `self tail point little inside of neck`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 3.0
+        val radius = 1.0
+        val margin = 0.01
+
+        initByCoords(
+            radius, hOffset, hRadius,
+            52 - margin, 53.0, // exactly touching cone and little inside
+            100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertSelf()
+    }
+
+    /**
+     *
+     */
+    @Test
+    fun `self tail point within head`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 2.0
+        val radius = 1.0
+        val margin = 0.01
+
+        initByCoords(
+            radius, hOffset, hRadius,
+            50.0, 49.0, // within head
+            100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertSelf()
+    }
+
+    /**
+     * test crossing by segment! not by ends of segment touching head
+     */
+    @Test
+    fun `self crossing neck not touching head`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 2.0
+        val radius = 1.0
+
+        //////////////////////
+        // Crossing
+        initByCoords(
+            radius, hOffset, hRadius,
+            10.0, 55.0, 20.0, 55.0, // crosses neck without touching head - @y=55
+            100.0, 55.0, 100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertSelf()
+    }
+
+    /**
+     ** test crossing by segment! not by ends of segment touching head
+     */
+    @Test
+    fun `self crossing head`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 2.0
+        val radius = 1.0
+
+        initByCoords(
+            radius, hOffset, hRadius,
+            10.0, 48.0, 20.0, 48.0, // crosses head - y = 48
+            100.0, 48.0, 100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertSelf()
+    }
+
+    /**
+     * test crossing by segment! not by ends of segment touching head 
+     */
+    @Test
+    fun `self crossing ahead of head`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 2.0
+        val radius = 1.0
+
+        initByCoords(
+            radius, hOffset, hRadius,
+            10.0, 46.0, 20.0, 46.0, // crosses AHEAD of head - y = 46
+            100.0, 46.0, 100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertNone()
+    }
+
+    /**
+     * test crossing by segment! not by ends of segment touching head
+     */
+    @Test
+    fun `self crossing behind face ring`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 2.0
+        val radius = 1.0
+
+        // here no collisiion - body crosses body, not head - no collision here
+        initByCoords(
+            radius, hOffset, hRadius,
+            10.0, 62.0, 20.0, 62.0, // crosses BEHIND of face - y = 62
+            100.0, 62.0, 100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertNone()
+    }
+
+    // neck at y=55: [52,55]
+
+    /**
+     *
+     */
+    @Test
+    fun `self crossing rib out of neck`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 3.0
+        val radius = 1.0
+
+        initByCoords(
+            radius, hOffset, hRadius,
+            70.0, 50.0,
+            53.1, 50.0, // testcase: little right of neck (+0.1)
+            100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertNone()
+    }
+
+    /**
+     *
+     */
+    @Test
+    fun `self crossing rib in neck`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 3.0
+        val radius = 1.0
+
+        initByCoords(
+            radius, hOffset, hRadius,
+            70.0, 50.0,
+            52.9, 50.0, // testcase: little into neck (+0.1)
+            100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertSelf()
+    }
+
+/*    TODO Especial check that head does not cross any segment
 
     @Test
-    fun `collision to self`() {
-//        fail("Collision to self is not tested")
-        /*val tailLen = 1.0
-        val initLen = 0.2
-        val delta = 2.0
+    fun `self crossing rib out of head`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 3.0
+        val radius = 1.0
 
-        BodyModel(tailLen, tRadius)
-            .apply {
-                init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
-                advance(delta, NO_ROTATE, delta)
-            }.assertBodySegments(tailLen, doubleArrayOf(initLen),
-                doubleArrayOf(tStartAngle),
-                tStartX + delta* cos(tStartAngle), tStartY + delta* cos(tStartAngle)
-            )*/
+        initByCoords(
+            radius, hOffset, hRadius,
+            50.0, 10.0,
+            52.0, 50.0, // testcase: TODO check rib coords
+            100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertNone()
     }
+
+    @Test
+    fun `self crossing rib IN head`() {
+        val scene = TestScene(1000f,1000f)
+        val hOffset = 10.0
+        val hRadius = 3.0
+        val radius = 1.0
+
+        initByCoords(
+            radius, hOffset, hRadius,
+            70.0, 50.0,
+            52.0, 50.0, // testcase: TODO check rib coords
+            100.0, 100.0, 50.0, 100.0,
+            50.0, 50.0 + hOffset
+        ).checkCollisions(scene)
+            .assertSelf()
+    }*/
 }

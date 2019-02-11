@@ -246,10 +246,17 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
     }
 
     private fun collidesHead(fieldObject: IFieldObject):Boolean {
-        val cx = fieldObject.centerX
-        val cy = fieldObject.centerY
-        val objR = fieldObject.radius
+        return collidesHead(
+            fieldObject.centerX.toDouble(),
+            fieldObject.centerY.toDouble(),
+            fieldObject.radius.toDouble()
+        )
+    }
 
+    /**
+     * whether the point with radius touches the head "neck" or head sphere
+     */
+    private fun collidesHead(cx: Double, cy: Double, objR: Double): Boolean {
         // check how near to the face ring->head center line:
         // rotate obj center around last ring center, check distance to ring->head centers
         // translate to face CS
@@ -288,6 +295,24 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
 
         if (obj != null) {
             return Collision(CollisionType.GAMEOBJECT, obj)
+        }
+
+        // reverse iteration
+        var distanceFromFace = 0.0
+        var checkThis = false
+
+        for (i in bodySegmentsImpl.size - 1 downTo 0) {
+            val segment = bodySegmentsImpl[i]
+            distanceFromFace += segment.dLength
+            // TODO fix collision to sphere behind face ring, remove*2
+            checkThis = checkThis || segment.startRadius * 2 < distanceFromFace
+
+            if (checkThis) {
+                // start ting of the segment cannot touch face center - check from here
+                if (collidesHead(segment.dStartX, segment.dStartY, segment.startRadius.toDouble())) {
+                    return SELF_COLLISION
+                }
+            }
         }
 
         return NO_COLLISION
