@@ -264,8 +264,8 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
         val offY = cy - faceY
 
         // rotate around face center
-        val rotX = offX * headDirectionCosinus - offY * (-headDirectionSinus);
-        val rotY = offX * (-headDirectionSinus) + offY * headDirectionCosinus;
+        val rotX = offX * headDirectionCosinus - offY * (-headDirectionSinus)
+        val rotY = offX * (-headDirectionSinus) + offY * headDirectionCosinus
 
         // after rotation, behind face center or ahead of head sphere
         if(rotX < -objR || rotX > headOffset + headRadius + objR)
@@ -304,8 +304,8 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
         for (i in bodySegmentsImpl.size - 1 downTo 0) {
             val segment = bodySegmentsImpl[i]
             distanceFromFace += segment.dLength
-            // TODO fix collision to sphere behind face ring, remove*2
-            checkThis = checkThis || segment.startRadius * 2 < distanceFromFace
+            // start checking vertebras further than 2*faceR from face
+            checkThis = checkThis || distanceFromFace > faceR * 2
 
             if (checkThis) {
                 // start ting of the segment cannot touch face center - check from here

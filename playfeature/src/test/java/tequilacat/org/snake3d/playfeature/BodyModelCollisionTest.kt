@@ -253,20 +253,21 @@ class BodyModelCollisionTest {
             advance(0.2, -0.01)
         }.checkCollisions(TestScene(1000f,1000f))
             .assertNone()
+    }
 
-        // check that no-neck head does not collide with vertebra behind:
-        // head semisphere behind face coords must not collide
 
-        // TODO test and fix collision to sphere behind face ring
-        BodyModel(1000.0, 1.0, 0.0, 1.0).apply {
-            init(10.0, 10.0, 10.0, 0.0, 0.2)
-            advance(0.2, 0.01)
-            advance(0.2, 0.01)
-            advance(0.2, 0.01)
-            advance(0.2, 0.01)
+    /**
+     * check that big head (expanding behind face ring) does not collide with vertebra behind
+     */
+    @Test
+    fun `self big head does not touch first vertebra`() {
+        val totalLen = 9.0
+        val headR = 10.0 // HUGE head
+
+        BodyModel(1000.0, 1.0, 0.0, headR).apply {
+            init(100.0, 100.0, 10.0, 0.0, totalLen)
         }.checkCollisions(TestScene(1000f,1000f))
             .assertNone()
-
     }
 
     /**
@@ -278,8 +279,6 @@ class BodyModelCollisionTest {
         val hOffset = 10.0
         val hRadius = 2.0
         val radius = 1.0
-        val margin = 0.01
-
 
         initByCoords(
             radius, hOffset, hRadius,
@@ -360,7 +359,6 @@ class BodyModelCollisionTest {
         val hOffset = 10.0
         val hRadius = 2.0
         val radius = 1.0
-        val margin = 0.01
 
         initByCoords(
             radius, hOffset, hRadius,
@@ -465,7 +463,7 @@ class BodyModelCollisionTest {
         initByCoords(
             radius, hOffset, hRadius,
             70.0, 50.0,
-            53.1, 50.0, // testcase: little right of neck (+0.1)
+            54.1, 50.0, // testcase: little right of neck (+0.1)
             100.0, 100.0, 50.0, 100.0,
             50.0, 50.0 + hOffset
         ).checkCollisions(scene)
@@ -473,7 +471,7 @@ class BodyModelCollisionTest {
     }
 
     /**
-     *
+     * rib "sphere" touches slightly head sphere
      */
     @Test
     fun `self crossing rib in neck`() {
@@ -485,7 +483,7 @@ class BodyModelCollisionTest {
         initByCoords(
             radius, hOffset, hRadius,
             70.0, 50.0,
-            52.9, 50.0, // testcase: little into neck (+0.1)
+            53.9, 50.0, // testcase: little into neck (+0.1)
             100.0, 100.0, 50.0, 100.0,
             50.0, 50.0 + hOffset
         ).checkCollisions(scene)
