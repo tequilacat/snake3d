@@ -5,6 +5,7 @@ import android.opengl.GLES20.*
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import android.os.SystemClock
+import android.util.Log
 import tequilacat.org.snake3d.playfeature.*
 import tequilacat.org.snake3d.playfeature.glutils.*
 import javax.microedition.khronos.egl.EGLConfig
@@ -109,10 +110,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
             val time4 = SystemClock.uptimeMillis()
 
-//            Log.d(
-//                "render",
-//                "body update: ${time1 - time0} / ${time2 - time1} / ${time3 - time2} / ${time4 - time3}"
-//            )
+            Log.d("render","body[${segments.size}] update: ${time1 - time0} / ${time2 - time1} / ${time3 - time2} / ${time4 - time3}")
         }
     }
 

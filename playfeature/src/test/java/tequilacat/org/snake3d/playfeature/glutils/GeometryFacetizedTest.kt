@@ -1,10 +1,19 @@
 package tequilacat.org.snake3d.playfeature.glutils
 
 
+import io.mockk.unmockkAll
+import org.junit.After
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
+import tequilacat.org.snake3d.playfeature.mockAndroidStatics
 
 class GeometryFacetizedTest {
+    @Before
+    fun beforeTests() = mockAndroidStatics()
+    @After
+    fun afterTests() = unmockkAll()
+
     @Test(expected = IllegalArgumentException::class)
     fun `facetize noindexes argumentexception`() {
         // no indexes

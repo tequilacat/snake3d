@@ -1,5 +1,8 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
+import io.mockk.*
+import org.junit.After
+import org.junit.Before
 import org.junit.Test
 
 import org.junit.Assert.*
@@ -57,6 +60,12 @@ class BodyShapeTest {
             return this
         }
     }
+
+    @Before
+    fun beforeTests() = mockAndroidStatics()
+
+    @After
+    fun afterTests() = unmockkAll()
 
     @Test
     fun `build basicfeatures`() {

@@ -1,5 +1,7 @@
 package tequilacat.org.snake3d.playfeature.oglgame
 
+import android.os.SystemClock
+import android.util.Log
 import tequilacat.org.snake3d.playfeature.IBodySegmentModel
 import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
 import tequilacat.org.snake3d.playfeature.glutils.Geometry
@@ -45,12 +47,14 @@ abstract class AbstractBodyGeometryBuilder(
     protected abstract fun rebuildGeometry(bodySegments: Iterable<IBodySegmentModel>)
 
     override fun update(segments: Iterable<IBodySegmentModel>) {
+        val t1 = SystemClock.uptimeMillis()
         rebuildGeometry(segments)
-
+        val t2 = SystemClock.uptimeMillis()
         //val stNormals = SystemClock.uptimeMillis()
         computeNormals()
+        val t3 = SystemClock.uptimeMillis()
         //val stNormals1 = SystemClock.uptimeMillis()
-        //Log.d("perf", "Segments: ${segments.size}, Normals: $indexCount, time: ${stNormals1 - stNormals} ms")
+        Log.d("perf", "update[$indexCount]: geom ${t2 - t1}, normals ${t3 - t2} ms")
 
         geom = Geometry(
             vertexes, vertexCount,
@@ -134,6 +138,8 @@ abstract class AbstractBodyGeometryBuilder(
     }
 
     private fun computeNormals() {
+        val t0 = SystemClock.uptimeMillis()
+
         // reset normals to 0
         for (vi in vertexFloatStride - 3 until vertexCount step vertexFloatStride) {
             // reset normals
@@ -141,6 +147,8 @@ abstract class AbstractBodyGeometryBuilder(
             vertexes[vi + 1] = 0f
             vertexes[vi + 2] = 0f
         }
+
+        val t1 = SystemClock.uptimeMillis()
 
         var i = 0
         while(i < indexCount) {
@@ -165,14 +173,21 @@ abstract class AbstractBodyGeometryBuilder(
 
                 i++
             }
-
-            //i += 3
         }
+
+        val t2 = SystemClock.uptimeMillis()
+
+        var normalPos = 5
         for(vertexIndex in 0 until vertexCount) {
-            val normalPos = vertexIndex * vertexFloatStride + 5
+            //val normalPos = vertexIndex * vertexFloatStride + 5
             CoordUtils.normalize(vertexes, normalPos, vertexes, normalPos)
+            normalPos += vertexFloatStride
 //            println("  V#$vertexIndex: ${vertexes[normalPos]}, ${vertexes[normalPos+1]}, ${vertexes[normalPos+2]}")
         }
+
+        val t3 = SystemClock.uptimeMillis()
+        // computeNormals large count: 6,15,0
+        Log.d("perf", "computeNormals: ${t3-t2}, ${t2-t1}, ${t1-t0}")
     }
 
     protected fun addRing(atIndex: Int, cx: Float, cy: Float, cz: Float, radius: Float, angle: Float,

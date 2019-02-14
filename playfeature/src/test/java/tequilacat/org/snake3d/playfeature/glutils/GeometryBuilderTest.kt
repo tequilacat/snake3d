@@ -1,10 +1,18 @@
 package tequilacat.org.snake3d.playfeature.glutils
 
+import io.mockk.unmockkAll
+import org.junit.After
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
 import tequilacat.org.snake3d.playfeature.assertArraysEqual
+import tequilacat.org.snake3d.playfeature.mockAndroidStatics
 
 class GeometryBuilderTest{
+    @Before
+    fun beforeTests() = mockAndroidStatics()
+    @After
+    fun afterTests() = unmockkAll()
 
     private fun testinstance_basicQuad() = GeometryBuilder()
         .apply {
