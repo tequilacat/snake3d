@@ -7,7 +7,6 @@ import org.junit.Test
 
 import org.junit.Assert.*
 import tequilacat.org.snake3d.playfeature.*
-import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
 import tequilacat.org.snake3d.playfeature.glutils.Geometry
 import kotlin.math.PI
 import kotlin.math.cos
@@ -311,7 +310,7 @@ class BodyShapeTest {
         // check all normals have length = 1
         for (vi in 0 until geometry.vertexCount step geometry.vertexFloatStride) {
             assertEquals("Bad normal at vi=$vi",
-                1f, CoordUtils.length(geometry.vertexes, vi + 5), testFloatTolerance) // tolerance
+                1f, TestUtils.computeVectorLength(geometry.vertexes, vi + 5), testFloatTolerance) // tolerance
         }
 
         val getNormal = { index: Int ->

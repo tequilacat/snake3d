@@ -11,7 +11,7 @@ import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
-import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
+import kotlin.math.sqrt
 
 const val testFloatTolerance = 0.00001f
 
@@ -25,7 +25,7 @@ fun mockAndroidStatics() {
     val slotZ = slot<Float>()
 
     every { Matrix.length(capture(slotX), capture(slotY), capture(slotZ)) } answers {
-        CoordUtils.length(floatArrayOf(slotX.captured, slotY.captured, slotZ.captured), 0)
+        TestUtils.computeVectorLength(floatArrayOf(slotX.captured, slotY.captured, slotZ.captured), 0)
     }
 
     mockkStatic(Log::class)
@@ -48,6 +48,10 @@ fun assertArraysEqual(v1: FloatArray, v2: FloatArray) {
 }
 
 class TestUtils {
+    companion object {
+        fun computeVectorLength(v: FloatArray, pos: Int = 0) =
+            sqrt(v[pos] * v[pos] + v[pos + 1] * v[pos + 1] + v[pos + 2] * v[pos + 2])
+    }
 
     @Before
     fun beforeTests() = mockAndroidStatics()
@@ -66,7 +70,7 @@ class TestUtils {
         val singleMatrix = floatArrayOf(1f, 2f, 3f)
 
         Assert.assertEquals(
-            CoordUtils.length(singleMatrix, 0),
+            computeVectorLength(singleMatrix, 0),
             Matrix.length(singleMatrix[0], singleMatrix[1], singleMatrix[2])
         )
 

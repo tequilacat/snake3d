@@ -1,6 +1,7 @@
 package tequilacat.org.snake3d.playfeature.glutils
 
 import android.content.Context
+import android.opengl.Matrix
 import java.nio.*
 import kotlin.math.*
 
@@ -46,20 +47,9 @@ class CoordUtils {
             Nz = UxVy - UyVx*/
         }
 
-        fun distance(p1: FloatArray, p2: FloatArray): Float {
-            val dx = p1[0] - p2[0]
-            val dy = p1[1] - p2[1]
-            val dz = p1[2] - p2[2]
-
-            return Math.sqrt((dx * dx + dy * dy + dz * dz).toDouble()).toFloat()
-        }
-
-        fun length(v: FloatArray, pos: Int = 0) =
-            sqrt(v[pos] * v[pos] + v[pos + 1] * v[pos + 1] + v[pos + 2] * v[pos + 2])
-
         /** src and dst may be same array at same position (but don't overlap!)*/
         fun normalize(dst: FloatArray, dstPos: Int, src: FloatArray, srcPos: Int) {
-            val l = 1.0f / length(src, srcPos)
+            val l = 1.0f / Matrix.length(src[srcPos], src[srcPos + 1], src[srcPos + 2])
             dst[dstPos] = src[srcPos] * l
             dst[dstPos + 1] = src[srcPos + 1] * l
             dst[dstPos + 2] = src[srcPos + 2] * l
