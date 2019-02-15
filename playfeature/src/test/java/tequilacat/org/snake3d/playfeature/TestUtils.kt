@@ -14,6 +14,7 @@ import org.junit.Test
 import kotlin.math.sqrt
 
 const val testFloatTolerance = 0.00001f
+const val testDoubleTolerance = 0.000001
 
 fun mockAndroidStatics() {
     mockkStatic(SystemClock::class)
