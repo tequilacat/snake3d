@@ -1,10 +1,7 @@
 package tequilacat.org.snake3d.playfeature
 
 import java.util.*
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.hypot
-import kotlin.math.sin
+import kotlin.math.*
 
 interface IBodySegmentModel {
     val startX: Float
@@ -66,7 +63,7 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
         var dEndZ = 0.0
         var dStartZ = 0.0
 
-        private var dStartRadius = 0.0
+        var dStartRadius = 0.0
         var dEndRadius = 0.0
 
         override val alpha: Float = dAlpha.toFloat()
@@ -285,6 +282,52 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
         return false
     }
 
+    /**
+     * whether line crosses. we don't check if line ends touch cone (checked elsewhere)
+     * only whether the line crosses "neck" axis between face ring and head sphere,
+     *   or ahead of head sphere, accounting for segment thickness (extrapolated between r0 and r1)
+     *
+     */
+    private fun crossesHead(x0: Double, y0: Double, r0: Double, x1: Double, y1: Double, r1: Double): Boolean {
+        val offX0 = x0 - faceX
+        val offY0 = y0 - faceY
+
+        // rotate around face center
+        val rotX0 = offX0 * headDirectionCosinus -  offY0 * (-headDirectionSinus)
+        val rotY0 = offX0 * (-headDirectionSinus) + offY0 * headDirectionCosinus
+
+
+        val offX1 = x1 - faceX
+        val offY1 = y1 - faceY
+
+        // rotate around face center
+        val rotX1 = offX1 * headDirectionCosinus -  offY1 * (-headDirectionSinus)
+        val rotY1 = offX1 * (-headDirectionSinus) + offY1 * headDirectionCosinus
+
+        // if diff signs of Y they]re on different sides,
+
+        val tolerance = 0.0001
+        // when coaxial we test if both are within
+        if(abs(rotY0) < tolerance && abs(rotY1) < tolerance) {
+            val xMin = min(rotX0, rotX1)
+            val xMax = max(rotX0, rotX1)
+            return (xMax >= 0.0 && xMin <= headOffset + headRadius)
+        }
+
+        // on same side (the 0 is checked above
+        if (sign(rotY0) == sign(rotY1)) {
+            return false
+        }
+
+        // now points are on diff sides:
+        // look for cross coordinate on 0x and check if it is within neck and head sphere
+
+        val factor = abs(rotY0 / (rotY1 - rotY0))
+        val crossX = rotX0 + (rotX1 - rotX0) * factor
+        val crossR = r0 + (r1 - r0) * factor
+
+        return crossX >= 0 && crossX - crossR < headOffset + headRadius
+    }
 
     fun checkCollisions(gameScene: IGameScene) : Collision {
         if (dHeadX + headRadius > gameScene.fieldWidth || dHeadX - headRadius < 0
@@ -303,6 +346,13 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
 
         for (i in bodySegmentsImpl.size - 1 downTo 0) {
             val segment = bodySegmentsImpl[i]
+
+            // segment end is already far enough to deserve test
+            if(checkThis && crossesHead(segment.dStartX, segment.dStartY, segment.dStartRadius,
+                    segment.dEndX, segment.dEndY, segment.dEndRadius)) {
+                return SELF_COLLISION
+            }
+
             distanceFromFace += segment.dLength
             // start checking vertebras further than 2*faceR from face
             checkThis = checkThis || distanceFromFace > faceR * 2
