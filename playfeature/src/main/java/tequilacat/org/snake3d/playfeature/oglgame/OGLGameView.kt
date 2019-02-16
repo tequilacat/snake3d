@@ -185,7 +185,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         }
 
         floorGeometryBuffer = GeometryBuffer(makeFloor(game.scene.fieldWidth, game.scene.fieldHeight,
-            Game.BODY_UNIT * 3, true))
+            Game.BODY_UNIT, Game.BODY_UNIT * 2))
         gameObjects.add(
             DrawableGameObject(
                 floorGeometryBuffer,

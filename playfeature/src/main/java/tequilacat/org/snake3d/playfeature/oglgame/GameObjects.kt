@@ -47,16 +47,88 @@ class DrawableGameObject(
 
 
 
-fun makeFloor(fW: Float, fH: Float, tileSpace: Float, addTexture: Boolean): Geometry {
+fun makeFloor(fW: Float, fH: Float, wallHeight: Float, rimWidth: Float): Geometry {
     val floorBuilder = GeometryBuilder()
     val floorZ = 0f
 
+    floorBuilder.addQuad(
+        0f, 0f, floorZ,
+        0f, fH, floorZ,
+        0f, fH, floorZ + wallHeight,
+        0f, 0f, floorZ + wallHeight,
+        floatArrayOf(0f, 0f, 20f, 1f)
+    )
+
+    floorBuilder.addQuad(
+        0f, 0f, floorZ,
+        0f, 0f, floorZ + wallHeight,
+        fW, 0f, floorZ + wallHeight,
+        fW, 0f, floorZ,
+        floatArrayOf(0f, 0f, 1f, 20f)
+    )
+
+    floorBuilder.addQuad(
+        fW, 0f, floorZ,
+        fW, 0f, floorZ + wallHeight,
+        fW, fH, floorZ + wallHeight,
+        fW, fH, floorZ,
+        floatArrayOf(0f, 0f, 1f, 20f)
+    )
+
+    floorBuilder.addQuad(
+        fW, fH, floorZ,
+        fW, fH, floorZ + wallHeight,
+        0f, fH, floorZ + wallHeight,
+        0f, fH, floorZ,
+        floatArrayOf(0f, 0f, 1f, 20f)
+    )
+
+    val x0 = -rimWidth
+    val y0 = -rimWidth
+    val x1 = fW + rimWidth
+    val y1 = fH + rimWidth
+    val rimH = floorZ + wallHeight
+    val wallfactor = 0.5f
+    // rims 0x
+    floorBuilder.addQuad(
+        x0, 0f, rimH,
+        x0, y0, rimH,
+        x1, y0, rimH,
+        x1, 0f, rimH,
+        floatArrayOf(0f, 0f, wallfactor, 20f)
+    )
+
+    floorBuilder.addQuad(
+        x0, 0f, rimH,
+        0f, 0f, rimH,
+        0f, fH, rimH,
+        x0, fH, rimH,
+        floatArrayOf(0f, 0f, wallfactor, 20f)
+    )
+
+    floorBuilder.addQuad(
+        x0, fH, rimH,
+        x1, fH, rimH,
+        x1, y1, rimH,
+        x0, y1, rimH,
+        floatArrayOf(0f, 0f, 20f, wallfactor)
+    )
+
+    floorBuilder.addQuad(
+        fW, 0f, rimH,
+        x1, 0f, rimH,
+        x1, fH, rimH,
+        fW, fH, rimH,
+        floatArrayOf(0f, 0f, wallfactor, 20f)
+    )
+
+    // the floor
     floorBuilder.addQuad(
         0f, 0f, floorZ, // BL
         fW, 0f, floorZ, // BR
         fW, fH, floorZ, // TR
         0f, fH, floorZ,
-        if (addTexture) floatArrayOf(0f, 0f, 20f, 20f) else Empty.FloatArray
+        floatArrayOf(0f, 0f, 20f, 20f)
     )
 
     /*
