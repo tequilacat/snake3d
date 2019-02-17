@@ -214,7 +214,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
     private fun updateBody() {
         if (debugScene != null) {
-            bodyShapeObject.update(debugScene.bodySegments)
+            // bodyShapeObject.update(debugScene.bodySegments)
         } else {
             bodyShapeObject.update(game.scene.bodyModel.bodySegments)
         }
@@ -291,11 +291,11 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         Matrix.multiplyMM(drawContext.viewProjectionMatrix, 0, drawContext.projectionMatrix, 0, drawContext.viewMatrix, 0)
 
         if(debugScene != null) {
-            // dbg update body on each draw
-            bodyShapeObject.update(debugScene.bodySegments)
+            debugScene.draw(drawContext, DebugScene.TestObjectContext(texturePainter, bodyTextureId))
+        } else {
+            gameObjects.forEach { it.draw(drawContext) }
         }
 
-        gameObjects.forEach { it.draw(drawContext) }
         skyboxPainter.paint(drawContext)
     }
 
