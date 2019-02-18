@@ -90,7 +90,8 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
         fun update(segments: Collection<IBodySegmentModel>) {
             val time0 = SystemClock.uptimeMillis()
-            bodyShape.update(segments)
+            TODO("bodyShape.update(segments) is commented out")
+            // bodyShape.update(segments)
 
             val time1 = SystemClock.uptimeMillis()
 

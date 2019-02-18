@@ -2,7 +2,8 @@ package tequilacat.org.snake3d.playfeature.oglgame
 
 import android.os.SystemClock
 import android.util.Log
-import tequilacat.org.snake3d.playfeature.IBodySegmentModel
+import tequilacat.org.snake3d.playfeature.IDirectedSection
+import tequilacat.org.snake3d.playfeature.IDirectedSegment
 import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
 import tequilacat.org.snake3d.playfeature.glutils.Geometry
 import kotlin.math.PI
@@ -11,7 +12,7 @@ import kotlin.math.sin
 
 interface IBodyGeometryBuilder {
     val geometry: Geometry
-    fun update(segments: Iterable<IBodySegmentModel>)
+    fun update(segments: Iterable<IDirectedSection>)
 }
 
 /**
@@ -39,14 +40,14 @@ abstract class AbstractBodyGeometryBuilder(
     protected val vertexFloatStride = 8
 
     // some safe guesses
-    protected var vertexes: FloatArray = FloatArray(1000)
+    protected var vertexes: FloatArray = FloatArray(2000)
     private var indexes: ShortArray = ShortArray(2000)
     private var indexCount = 0
     protected var vertexCount = 0
 
-    protected abstract fun rebuildGeometry(bodySegments: Iterable<IBodySegmentModel>)
+    protected abstract fun rebuildGeometry(bodySegments: Iterable<IDirectedSection>)
 
-    override fun update(segments: Iterable<IBodySegmentModel>) {
+    override fun update(segments: Iterable<IDirectedSection>) {
         val t1 = SystemClock.uptimeMillis()
         rebuildGeometry(segments)
         val t2 = SystemClock.uptimeMillis()
@@ -67,15 +68,16 @@ abstract class AbstractBodyGeometryBuilder(
     private val tmpNormals = FloatArray(3)
 
     /**
-     * (re-)allocates vertex array from known ring count
-     * Called from rebuildGeometry when ring count is known
+     * allocates vertex array assuming we're about to storie vertex at specified index.
+     * makes sure there's at least 1000 vertex floats allowed to be stored after the call
      */
-    protected fun allocateVertexArray(ringCount: Int) {
-        vertexCount = (segmentFaceCount * ringCount + 2)
-        val vertexCoordCount = vertexCount * vertexFloatStride
+    protected fun ensureVertexCapacity(currentVertexIndex: Int) {
+        val newSize = currentVertexIndex + 1000
 
-        if(vertexes.size < vertexCoordCount) {
-            vertexes = FloatArray(vertexCoordCount + 1000)
+        if (vertexes.size < newSize) {
+            val newArray = FloatArray(newSize)
+            vertexes.copyInto(newArray, 0, 0, currentVertexIndex)
+            vertexes = newArray
         }
     }
 
@@ -152,8 +154,6 @@ abstract class AbstractBodyGeometryBuilder(
 
         var i = 0
         while(i < indexCount) {
-        //for (i in 0 until indexCount step 3) {
-            // compute normals
             CoordUtils.crossProduct(
                 tmpNormals, 0, // end of stride (to account for possible UV in between
                 vertexes, indexes[i].toInt(), indexes[i + 1].toInt(), indexes[i + 2].toInt(), vertexFloatStride
@@ -192,6 +192,8 @@ abstract class AbstractBodyGeometryBuilder(
 
     protected fun addRing(atIndex: Int, cx: Float, cy: Float, cz: Float, radius: Float, angle: Float,
                         ringU: Float) {
+        ensureVertexCapacity(atIndex)
+
         val sinus = sin(angle)
         val cosinus = cos(angle)
         var index = atIndex
@@ -201,84 +203,126 @@ abstract class AbstractBodyGeometryBuilder(
         for ((aSin, aCos) in segmentAngleSinCos) {
             // compute coord of every vertex of the segment
             val dx0 = radius * aCos
-            // val dy0 = bodyRadius * aSin
-            vertexes[index] = (cx + dx0 * sinus)
-            vertexes[index + 1] = (cy - dx0 * cosinus)
-            vertexes[index + 2] = cz + radius * aSin
-            vertexes[index + 3] = ringU
-            vertexes[index + 4] = currV
-
+            // TODO use sum of vectors instead of trigon ops - that also should also make 3d easy
+            storeVertex(index,cx + dx0 * sinus, cy - dx0 * cosinus, cz + radius * aSin, ringU, currV)
             currV += dV
             index += vertexFloatStride
         }
     }
+
+
+
+    private var rotateAroundAxis = false
+
+    /**
+     *  when all are 3 we don't rotate
+     */
+    fun setAxis(axisX: Float, axisY: Float, axisZ: Float) {
+        rotateAroundAxis = !(axisX == 0f && axisY == 0f && axisZ == 0f)
+    }
+
+    /**
+     * Stores coords at index taking rotation into account
+     * */
+    protected fun storeVertex(vertexFloatIndex:Int, x: Float, y: Float, z: Float, u: Float, v: Float) {
+        var i = vertexFloatIndex
+         println("storeVertex @$vertexFloatIndex [#${vertexFloatIndex / 8}]: $x, $y, $z; uv = $u $v")
+
+        if(rotateAroundAxis) {
+            // hardcoded! replace OX with 0Z
+
+            vertexes[i++] = y
+            vertexes[i++] = z
+            vertexes[i++] = x
+
+        } else {
+            vertexes[i++] = x
+            vertexes[i++] = y
+            vertexes[i++] = z
+        }
+
+        vertexes[i++] = u
+        vertexes[i] = v
+    }
 }
 
-class BodyShapeBuilder(segmentFaceCount: Int, startAngle: Float, uPerLengthUnit: Float, vStart: Float) :
+class BodyShapeBuilder(segmentFaceCount: Int, startAngle: Float, uPerLengthUnit: Float, vStart: Float,
+                       private val useWrapFace: Boolean = false) :
     AbstractBodyGeometryBuilder(segmentFaceCount, startAngle, uPerLengthUnit, vStart) {
 
-    override fun rebuildGeometry(bodySegments: Iterable<IBodySegmentModel>) {
-        val iterableSegments = bodySegments as Iterable<IBodySegmentModel>
-        val iter = iterableSegments.iterator()
-        val first = iter.next() // bodySegments.first()
-        var totalLength = 0f
+    override fun rebuildGeometry(bodySegments: Iterable<IDirectedSection>) {
+        val iter = bodySegments.iterator()
+        val first = iter.next()
         var segmentCount = 0
 
         // first run is needed anyway, so we compute also segment count
-        iterableSegments.forEach {
-            totalLength += it.length
-            segmentCount++
-        }
-        // and adjust vertex array here
-        allocateVertexArray(segmentCount)
-        rebuildIndexes(segmentCount)
+        // TODO compute U from end, not from start - so get rid of this useless iteration
+        // so far just comment out
+//        bodySegments.forEach {
+//            totalLength += it.length
+//            segmentCount++
+//        }
 
-        var currentU = (totalLength) * uPerLengthUnit
 
-        // add tail point
-        vertexes[0] = first.startX
-        vertexes[1] = first.startY
-        vertexes[2] = first.startZ
-        vertexes[3] = currentU
-        vertexes[4] = 0.5f
+        // make sure we have enough at the start (although there will be checks in addRing)
+        ensureVertexCapacity(0)
+
+        var currentU = 0.0f
+
+        // Z: very crude assume that start segment has no start radius at all
+        storeVertex(0, first.centerX, first.centerY, first.centerZ, currentU, 0.5f)
 
         var index = vertexFloatStride
         val ringStride = segmentFaceCount * vertexFloatStride
-        var prev = first // assume hasNext
-        var ringCount = 1 // anyway last ring is added
+        var prev = first
 
+        // always must have at least 2 rings (at least 1 segment) !
         while(iter.hasNext()) {
             val next = iter.next()
             // betveen prev end and next start
 
-            currentU -= uPerLengthUnit * prev.length
+            currentU += uPerLengthUnit * next.prevLength
             addRing(
-                index, prev.endX, prev.endY, prev.endZ, prev.endRadius,
+                index, next.centerX, next.centerY, next.centerZ, next.radius,
                 (next.alpha + prev.alpha) / 2, currentU
             )
-
-            ringCount++
+            segmentCount++
             index += ringStride
             prev = next
         }
 
-        // prev points to last segment, draw closing ring and nose
-        addRing(
-            index, prev.endX, prev.endY, prev.endZ, prev.endRadius,
-            prev.alpha, 0f // nose point has always 0U
-        )
-        index += ringStride
-
         // add nose as center of face ring
-        vertexes[index++] = prev.endX
-        vertexes[index++] = prev.endY
-        vertexes[index++] = prev.endZ
+        // nose V TODO what should be V for end points? middle (0.5)?
+        storeVertex(index, prev.centerX, prev.centerY, prev.centerZ, currentU, 0.5f)
 
-        vertexes[index++] = 0f // nose U is always 0
-        vertexes[index++] = 0.5f // nose V TODO what should be V for end points? middle?
+        // index pts to last one, so actual count is +1
+        vertexCount = index / vertexFloatStride + 1
+        rebuildIndexes(segmentCount)
+    }
+}
 
-        // now index points at normal start, increase by 3 to point to next vertex stride
-        // and compute vertex count
-        vertexCount = (index +3 )/ vertexFloatStride
+
+class RotationalGeometryBuilder {
+    /**
+     * @param distancesAndRadiuses <d,r>, <d,r>...  the 0 is appended automatically
+     */
+    fun build(distancesAndRadiuses: FloatArray, axisX: Float, axisY: Float, axisZ: Float, faceCount: Int): Geometry {
+        TODO("replace with BodyShapeBuilder or refactor anyway")
+        /*val rotationBuilder = BodyShapeBuilder(faceCount + 1, 0f, 1f, 0f,
+            true)
+        rotationBuilder.setAxis(axisX, axisY, axisZ)
+
+        val segments = mutableListOf<Segment>()// (Segment(0f,0f,0f, ))
+        var x = 0f
+
+        for (i in 0 until distancesAndRadiuses.size step 2) {
+            val length = distancesAndRadiuses[i]
+            val endRadius = distancesAndRadiuses[i+1]
+            segments.add(Segment(x, x + length, length, endRadius))
+            x += length
+        }
+
+        rotationBuilder.update(segments)
+        return rotationBuilder.geometry*/
     }
 }

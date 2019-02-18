@@ -13,49 +13,43 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 class BodyShapeTest {
-    class TB(private val startX: Double, private val startY: Double, private val floorZ: Double) {
+    class TB(private val startX: Number, private val startY: Number, private val floorZ: Number) {
 
-        private class TBS(
-            override val startX: Float,
-            override val startY: Float,
-            floorZ: Float,
-            //override val startZ: Float,
-            override val length: Float,
-            override val startRadius: Float,
-            override val endRadius: Float,
-            override val alpha: Float
-        ) : IBodySegmentModel {
-
-            override var endX: Float = 0f
-            override var endY: Float = 0f
-
-            override val startZ = floorZ + startRadius
-            override val endZ = floorZ + endRadius
-
-            override val alphaSinus = sin(alpha)
-            override val alphaCosinus = cos(alpha)
-
-            init {
-                computeEnd()
-            }
-
-            private fun computeEnd() {
-                endX = startX + length * alphaCosinus
-                endY = startY + length * alphaSinus
-            }
+        private class TDS(
+            override val centerX: Float,
+            override val centerY: Float,
+            override val centerZ: Float,
+            override val prevLength: Float,
+            override val radius: Float,
+            var mutableAlpha: Float
+        ) : IDirectedSection {
+            override val alpha: Float get() = mutableAlpha
         }
 
-        val segments = mutableListOf<IBodySegmentModel>()
+        val segments = mutableListOf<IDirectedSection>()
 
-        fun add(length: Double, endRadius: Double, deltaAngle: Double): TB {
+        fun add(length: Number, radius: Number, deltaAngle: Number): TB {
+            val last: IDirectedSection
+            val newAngle: Double
+
             if(segments.isEmpty()) {
-                segments.add(TBS(startX.toFloat(), startY.toFloat(), floorZ.toFloat(), length.toFloat(),
-                    0.0f, endRadius.toFloat(), deltaAngle.toFloat()))
-            }else {
-                val last = segments.last()
-                segments.add(TBS(last.endX, last.endY, floorZ.toFloat(), length.toFloat(),
-                    last.endRadius, endRadius.toFloat(), last.alpha + deltaAngle.toFloat()))
+                last = TDS(startX.toFloat(), startY.toFloat(), floorZ.toFloat(), 0f,
+                    0f, deltaAngle.toFloat())
+                segments.add(last)
+                newAngle = deltaAngle.toDouble()
+            } else {
+                last = segments.last()
+                newAngle = last.alpha + deltaAngle.toDouble()
+                (last as TDS).mutableAlpha = newAngle.toFloat()
+                // modify last alpha
             }
+
+            segments.add(TDS(
+                (last.centerX + length.toDouble() * cos(newAngle)).toFloat(),
+                (last.centerY + length.toDouble() * sin(newAngle)).toFloat(),
+                floorZ.toFloat() + radius.toFloat(),
+                length.toFloat(), radius.toFloat(), newAngle.toFloat()))
+
             return this
         }
     }
@@ -65,6 +59,60 @@ class BodyShapeTest {
 
     @After
     fun afterTests() = unmockkAll()
+
+    @Test
+    fun selftest() {
+
+        // test angles
+        val body2sections = TB(0.0, 0.0, 0.0)
+            .add(10, 1, 2).segments //
+
+        assertArrayEquals(floatArrayOf(2f,2f),
+            body2sections.map { s -> s.alpha }.toFloatArray(), testFloatTolerance)
+
+        val body4sections = TB(0.0, 0.0, 0.0)
+            .add(1, 1, 1)
+            .add(1, 1, 1)
+            .add(1, 1, 1)
+            .segments
+        assertArrayEquals(floatArrayOf(1f, 2f, 3f, 3f),
+            body4sections.map { s -> s.alpha }.toFloatArray(), testFloatTolerance)
+
+
+
+        // test coords
+        val body3sectionsCoords = TB(1,2,0)
+            .add(1, 2, PI/2)
+            .add(2, 1, PI/2)
+            .segments
+        assertEquals(3, body3sectionsCoords.size)
+        
+        val sec1 = body3sectionsCoords.first()
+        assertEquals(1f, sec1.centerX, testFloatTolerance)
+        assertEquals(2f, sec1.centerY, testFloatTolerance)
+        assertEquals(0f, sec1.centerZ, testFloatTolerance)
+        assertEquals(0f, sec1.radius, testFloatTolerance)
+        assertEquals(0f, sec1.prevLength, testFloatTolerance)
+        assertEquals(PI.toFloat() / 2, sec1.alpha, testFloatTolerance)
+
+        val sec2 = body3sectionsCoords[1]
+        assertEquals(1f, sec2.centerX, testFloatTolerance)
+        assertEquals(3f, sec2.centerY, testFloatTolerance)
+        assertEquals(2f, sec2.centerZ, testFloatTolerance)
+        assertEquals(2f, sec2.radius, testFloatTolerance)
+        assertEquals(1f, sec2.prevLength, testFloatTolerance)
+        // have rotated 2nd face
+        assertEquals(PI.toFloat(), sec2.alpha, testFloatTolerance)
+
+        val sec3 = body3sectionsCoords[2]
+        assertEquals(-1f, sec3.centerX, testFloatTolerance)
+        assertEquals(3f, sec3.centerY, testFloatTolerance)
+        assertEquals(1f, sec3.centerZ, testFloatTolerance)
+        assertEquals(1f, sec3.radius, testFloatTolerance)
+        assertEquals(2f, sec3.prevLength, testFloatTolerance)
+        // final face has same rotation
+        assertEquals(PI.toFloat(), sec3.alpha, testFloatTolerance)
+    }
 
     @Test
     fun `build basicfeatures`() {
@@ -118,7 +166,8 @@ class BodyShapeTest {
             this
         }.segments}
 
-        val segments1 = makeSegments(1)
+        val NSEGMENTS_1 = 1
+        val segments1 = makeSegments(NSEGMENTS_1)
         val nFaces = 4
         val builder = BodyShapeBuilder(nFaces, 0f, 1f, 0f)
         builder.update(segments1)
@@ -126,27 +175,29 @@ class BodyShapeTest {
         val prevVertexes = builder.geometry.vertexes
 
         //assertEquals((segments1.size + 1) * 8 * 3, builder.geometry.indexCount)
-        assertEquals(3 * (2 * nFaces + (segments1.size - 1) * nFaces * 2), builder.geometry.indexCount)
+        assertEquals(3 * (2 * nFaces + (NSEGMENTS_1 - 1) * nFaces * 2), builder.geometry.indexCount)
         assertEquals(
-            segments1.size * builder.segmentFaceCount + 2,
+            NSEGMENTS_1 * builder.segmentFaceCount + 2,
             builder.geometry.vertexCount)
 
-        val segments2 = makeSegments(10)
+        val NSEGMENTS_10 = 10
+        val segments2 = makeSegments(NSEGMENTS_10)
         builder.update(segments2)
 
-        assertEquals(3 * (2 * nFaces + (segments2.size - 1) * nFaces * 2), builder.geometry.indexCount)
+        assertEquals(3 * (2 * nFaces + (NSEGMENTS_10 - 1) * nFaces * 2), builder.geometry.indexCount)
         assertEquals(
-            segments2.size * builder.segmentFaceCount + 2,
+            NSEGMENTS_10 * builder.segmentFaceCount + 2,
             builder.geometry.vertexCount)
         assertEquals(prevIndexes, builder.geometry.indexes)
         assertEquals(prevVertexes, builder.geometry.vertexes)
 
-        val segments3 = makeSegments(1000)
+        val NSEGMENTS_1000 = 1000
+        val segments3 = makeSegments(NSEGMENTS_1000)
         builder.update(segments3)
 
-        assertEquals(3 * (2 * nFaces + (segments3.size - 1) * nFaces * 2), builder.geometry.indexCount)
+        assertEquals(3 * (2 * nFaces + (NSEGMENTS_1000 - 1) * nFaces * 2), builder.geometry.indexCount)
         assertEquals(
-            segments3.size * builder.segmentFaceCount + 2,
+            NSEGMENTS_1000 * builder.segmentFaceCount + 2,
             builder.geometry.vertexCount)
         assertNotEquals(prevIndexes, builder.geometry.indexes)
         assertNotEquals(prevVertexes, builder.geometry.vertexes)
@@ -173,8 +224,8 @@ class BodyShapeTest {
         bodyShape.update(segments)
         val geometry = bodyShape.geometry
 
-        // 3 segments, all have Z
-        (0 until segments.size).forEach {
+        // 3 segments [0-2], all have Z
+        (0..2).forEach {
             assertEquals(sin(startAngle1) + 1,
                 geometry.vertexes[(1 + nFaces * it) * geometry.vertexFloatStride + 2],
                 testFloatTolerance)
@@ -221,23 +272,18 @@ class BodyShapeTest {
         assertArrayEquals(floatArrayOf(0f, 0f, 0f),
             builder.geometry.vertexes.sliceArray(0..2), testFloatTolerance)
 
+        // nose is end of 1st segment
+        assertVertexData(builder.geometry, builder.geometry.vertexCount - 1,0,
+            floatArrayOf(len, 0f, r), 3)
+
         //  4 vertexes of single segment around [4, 0, 2]
         assertVertexData(builder.geometry, 1,0, floatArrayOf(
             len, -r, r, len, 0f, 2 * r, len, r, r, len, 0f, 0f), 3)
 
-        // nose is end of 1st segment
-        assertVertexData(builder.geometry, builder.geometry.vertexCount - 1,0,
-            floatArrayOf(len, 0f, r), 3)
     }
 
     @Test
     fun `vertex coordinates for 2 segments`() {
-
-//        val segments = mutableListOf(BodySegment(0.0, 0.0, testRadius.toDouble(),
-//            0.0, 10.0))
-        //val builder =  bodyShape()
-        // BodyShape(4, testRadius,0f,1f, 0f)
-
         val r1 = 1f
         val r2 = 2f
         val l1 = 10f
@@ -352,12 +398,12 @@ class BodyShapeTest {
             .segments)
         val geometry = builder.geometry
 
-        // nose
-        assertEquals(0f, geometry.vertexes[geometry.vertexCount * geometry.vertexFloatStride - 5], testFloatTolerance)
         // tail
-        assertEquals(length.toFloat() * uPer1Length, geometry.vertexes[3], testFloatTolerance)
+        assertEquals(0f, geometry.vertexes[3], testFloatTolerance)
+        // nose
+        assertEquals(length.toFloat() * uPer1Length, geometry.vertexes[geometry.vertexCount * geometry.vertexFloatStride - 5], testFloatTolerance)
         // ring (the single one)
-        customAssertRingU(0, geometry, nFaceSegments, 0f)
+        customAssertRingU(0, geometry, nFaceSegments, length.toFloat() * uPer1Length)
     }
 
 
@@ -382,17 +428,16 @@ class BodyShapeTest {
 
         val geometry = builder.geometry
 
-        // check U (V) - from head to tail, the ring texture maps to run length
+        // check U (V) - from tail to had, the ring texture maps to run length
 
-        // tailpoint - v#0
-        // check nose (last vertex) is 0
-        assertEquals(0f, geometry.vertexes[geometry.vertexCount * geometry.vertexFloatStride - 5], testFloatTolerance)
-        // tail point
-        assertEquals((l1 + l2 + l3) * uPer1Length, geometry.vertexes[3], testFloatTolerance)
+        // head:
+        assertEquals((l1 + l2 + l3) * uPer1Length, geometry.vertexes[geometry.vertexCount * geometry.vertexFloatStride - 5], testFloatTolerance)
+        // tail:
+        assertEquals(0f, geometry.vertexes[3], testFloatTolerance)
 
-        customAssertRingU(2, geometry, nFaceSegments, 0f) // nose ring same as nose point
-        customAssertRingU(1, geometry, nFaceSegments, l3 * uPer1Length)
-        customAssertRingU(0, geometry, nFaceSegments, (l2 + l3) * uPer1Length)
+        customAssertRingU(2, geometry, nFaceSegments, (l1 + l2 + l3) * uPer1Length) // nose ring same as nose point
+        customAssertRingU(1, geometry, nFaceSegments, (l1 + l2) * uPer1Length)
+        customAssertRingU(0, geometry, nFaceSegments, l1*uPer1Length)
     }
 
     /**
