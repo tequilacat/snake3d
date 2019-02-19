@@ -20,7 +20,7 @@ interface IDirectedSection {
 
 interface IRotationalGeometryBuilder {
     val geometry: Geometry
-    fun update(segments: Iterable<IDirectedSection>)
+    fun update(segments: Sequence<IDirectedSection>)
 }
 
 /**
@@ -53,9 +53,9 @@ abstract class AbstractRotationalGeometryBuilder(
     private var indexCount = 0
     protected var vertexCount = 0
 
-    protected abstract fun rebuildGeometry(bodySegments: Iterable<IDirectedSection>)
+    protected abstract fun rebuildGeometry(bodySegments: Sequence<IDirectedSection>)
 
-    override fun update(segments: Iterable<IDirectedSection>) {
+    override fun update(segments: Sequence<IDirectedSection>) {
         val t1 = SystemClock.uptimeMillis()
         rebuildGeometry(segments)
         val t2 = SystemClock.uptimeMillis()
@@ -218,8 +218,7 @@ abstract class AbstractRotationalGeometryBuilder(
         }
     }
 
-
-
+    // TODO remove explicit rotation after suppressing alpha in IDirectedSection
     private var rotateAroundAxis = false
 
     /**
@@ -234,7 +233,7 @@ abstract class AbstractRotationalGeometryBuilder(
      * */
     protected fun storeVertex(vertexFloatIndex:Int, x: Float, y: Float, z: Float, u: Float, v: Float) {
         var i = vertexFloatIndex
-         println("storeVertex @$vertexFloatIndex [#${vertexFloatIndex / 8}]: $x, $y, $z; uv = $u $v")
+//         println("storeVertex @$vertexFloatIndex [#${vertexFloatIndex / 8}]: $x, $y, $z; uv = $u $v")
 
         if(rotateAroundAxis) {
             // hardcoded! replace OX with 0Z
@@ -258,19 +257,10 @@ class RotationalShapeBuilder(segmentFaceCount: Int, startAngle: Float, uPerLengt
                              private val useWrapFace: Boolean = false) :
     AbstractRotationalGeometryBuilder(segmentFaceCount, startAngle, uPerLengthUnit, vStart) {
 
-    override fun rebuildGeometry(bodySegments: Iterable<IDirectedSection>) {
+    override fun rebuildGeometry(bodySegments: Sequence<IDirectedSection>) {
         val iter = bodySegments.iterator()
         val first = iter.next()
         var segmentCount = 0
-
-        // first run is needed anyway, so we compute also segment count
-        // TODO compute U from end, not from start - so get rid of this useless iteration
-        // so far just comment out
-//        bodySegments.forEach {
-//            totalLength += it.length
-//            segmentCount++
-//        }
-
 
         // make sure we have enough at the start (although there will be checks in addRing)
         ensureVertexCapacity(0)

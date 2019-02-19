@@ -2,7 +2,6 @@ package tequilacat.org.snake3d.playfeature.oglgame
 
 import android.opengl.Matrix
 import tequilacat.org.snake3d.playfeature.BodyModel
-import tequilacat.org.snake3d.playfeature.IBodySegmentModel
 import tequilacat.org.snake3d.playfeature.glutils.*
 import kotlin.math.PI
 import kotlin.math.cos
@@ -34,7 +33,7 @@ class DebugScene {
                     init(6.0, 4.0, 2.1, 0.5, 2.0)
                     feed(1000.0)
                     advance(2.0, -0.5)
-                    bodySegments
+                    bodySections
                 }
         ),
 
@@ -43,7 +42,7 @@ class DebugScene {
                 init(6.0, 4.0, 0.0, 0.0, 4.0)
                 feed(1000.0)
                 //advance(3.0, 0.0)
-                bodySegments
+                bodySections
             }
         )
     )
@@ -59,7 +58,7 @@ class DebugScene {
      * displays specified segments as body
      * // val
      */
-    class DebugBodyObj(private val segments: Iterable<IBodySegmentModel>) {
+    class DebugBodyObj(private val segments: Sequence<IDirectedSection>) {
         private val modelMatrix = FloatArray(16).also {
             Matrix.setIdentityM(it, 0)
         }

@@ -1,25 +1,8 @@
 package tequilacat.org.snake3d.playfeature
 
+import tequilacat.org.snake3d.playfeature.glutils.IDirectedSection
 import java.util.*
 import kotlin.math.*
-
-interface IBodySegmentModel {
-    val startX: Float
-    val startY: Float
-    val startZ: Float
-
-    val endX: Float
-    val endY: Float
-    val endZ: Float
-
-    val length: Float
-    val startRadius: Float
-    val endRadius: Float
-
-    val alpha: Float
-    val alphaSinus: Float
-    val alphaCosinus: Float
-}
 
 /**
  * Logical representation of snake's body - segments and modification methods
@@ -53,10 +36,26 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
     var viewDirection: Float = 0f
         private set
 
+    private class TailSection : IDirectedSection {
+        fun setFrom(tailSegment: BodySegmentModel) {
+            centerX = tailSegment.dStartX.toFloat()
+            centerY = tailSegment.dStartY.toFloat()
+            centerZ = tailSegment.dStartZ.toFloat()
+            alpha = tailSegment.alpha
+        }
+
+        override var alpha: Float = 0f
+        override var centerX: Float = 0f
+        override var centerY: Float = 0f
+        override var centerZ: Float = 0f
+        override val radius = 0f
+        override val prevLength = 0f
+    }
+
     private class BodySegmentModel(
         var dStartX: Double, var dStartY: Double, val dFloorZ: Double,
         val dAlpha: Double, var dLength: Double
-    ) : IBodySegmentModel {
+    ) : IDirectedSection {
 
         var dEndX = 0.0
         var dEndY = 0.0
@@ -67,19 +66,16 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
         var dEndRadius = 0.0
 
         override val alpha: Float = dAlpha.toFloat()
-        override val alphaSinus: Float = sin(alpha)
-        override val alphaCosinus: Float = cos(alpha)
 
-        override val startX: Float get() = dStartX.toFloat()
-        override val startY: Float get() = dStartY.toFloat()
-        override val startZ: Float get() = dStartZ.toFloat()
-        override val endX: Float get() = dEndX.toFloat()
-        override val endY: Float get() = dEndY.toFloat()
-        override val endZ: Float get() = dEndZ.toFloat()
+        private val alphaSinus: Float = sin(alpha)
+        private val alphaCosinus: Float = cos(alpha)
 
-        override val length: Float get() = dLength.toFloat()
-        override val startRadius: Float get() = dStartRadius.toFloat()
-        override val endRadius: Float get() = dEndRadius.toFloat()
+        // IDirectedSection
+        override val centerX: Float get() = dEndX.toFloat()
+        override val centerY: Float get() = dEndY.toFloat()
+        override val centerZ: Float get() = dEndZ.toFloat()
+        override val radius: Float get() = dEndRadius.toFloat()
+        override val prevLength: Float get() = dLength.toFloat()
 
         init {
             computeEnd()
@@ -115,7 +111,15 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
 
     private val bodySegmentsImpl = LinkedList<BodySegmentModel>()
 
-    val bodySegments: Collection<IBodySegmentModel> = bodySegmentsImpl
+    // TODO generate body sections from BodyProportions without BodySegment insertion when radius changes
+
+    private val tailSection = TailSection()
+
+    val bodySections : Sequence<IDirectedSection> get() = sequence {
+        tailSection.setFrom(bodySegmentsImpl.first)
+        yield(tailSection)
+        yieldAll(bodySegmentsImpl)
+    }
 
     /**
      * Z is floor level
@@ -155,7 +159,7 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
 
         for (segment in bodySegmentsImpl) {
             if (processedLen < tailLength) {
-                val endSegDistance = processedLen + segment.length
+                val endSegDistance = processedLen + segment.prevLength
                 segment.setRadiuses(
                     processedLen / tailLength * radius,
                     if (endSegDistance < tailLength) endSegDistance / tailLength else radius
@@ -359,7 +363,8 @@ class BodyModel(private val tailLength: Double, private val radius: Double,
 
             if (checkThis) {
                 // start ting of the segment cannot touch face center - check from here
-                if (collidesHead(segment.dStartX, segment.dStartY, segment.startRadius.toDouble())) {
+                val startRadius = if(i==0) 0.0 else bodySegmentsImpl[i - 1].dEndRadius
+                if (collidesHead(segment.dStartX, segment.dStartY, startRadius)) {
                     return SELF_COLLISION
                 }
             }

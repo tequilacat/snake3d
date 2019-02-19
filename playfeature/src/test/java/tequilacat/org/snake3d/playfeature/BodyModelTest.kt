@@ -3,6 +3,7 @@ package tequilacat.org.snake3d.playfeature
 import org.junit.Test
 
 import org.junit.Assert.*
+import tequilacat.org.snake3d.playfeature.glutils.IDirectedSection
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -44,30 +45,36 @@ class BodyModelTest {
     private fun BodyModel.assertSegments(tailLen: Double, expectedLengths: DoubleArray, expectedAngles: DoubleArray,
                                          startX: Double = tStartX, startY: Double = tStartY) {
         val body = this
-        val segments = body.bodySegments.toList()
-        assertEquals(expectedLengths.size, segments.size)
+        val sections = body.bodySections.toList()
+        assertEquals(expectedLengths.size, sections.size - 1)
 
         var totalLen = 0.0
-        val floorZ = segments[0].startZ // always at floor
+        val floorZ = sections[0].centerZ // always at floor
+
+        // test starts exactly as specified
+        assertEquals(startX.toFloat(), sections[0].centerX, testFloatTolerance)
+        assertEquals(startY.toFloat(), sections[0].centerY, testFloatTolerance)
 
         for (i in 0 until expectedLengths.size) {
-            val x = if (i == 0) startX else segments[i - 1].endX.toDouble()
-            val y = if (i == 0) startY else segments[i - 1].endY.toDouble()
+            val thisSegment = sections[i + 1]
+            val prevSection = sections[i]
+            val x = prevSection.centerX.toDouble()
+            val y = prevSection.centerY.toDouble()
 
-            val startR = when {
-                (i == 0) -> 0.0
-                totalLen >= tailLen -> tRadius
-                else -> (totalLen / tailLen) * tRadius
-            }
+//            val startR = when {
+//                (i == 0) -> 0.0
+//                totalLen >= tailLen -> tRadius
+//                else -> (totalLen / tailLen) * tRadius
+//            }
             val expLengh = expectedLengths[i]
             val endR =
                 (if (totalLen + expLengh >= tailLen) 1.0 else (totalLen + expLengh) / tailLen) * tRadius
             val expAngle = expectedAngles[i]
 
             assertSegment("[$i]",
-                segments[i], expAngle, x, y, floorZ + startR,
+                thisSegment, expAngle,
                 x + cos(expAngle) * expLengh, y + sin(expAngle) * expLengh, floorZ + endR,
-                startR, endR, expLengh)
+                endR, expLengh)
 
             totalLen += expLengh
         }
@@ -75,25 +82,19 @@ class BodyModelTest {
 
     private fun assertSegment(
         msg: String,
-        segment: IBodySegmentModel,
+        section: IDirectedSection,
         alpha: Double,
-        x0: Double, y0: Double, z0: Double,
         x1: Double, y1: Double, z1: Double,
-        startR: Double, endR: Double, length: Double) {
+        radius: Double, length: Double) {
 
-        assertEquals(msg, alpha.toFloat(), segment.alpha, testFloatTolerance)
+        assertEquals(msg, alpha.toFloat(), section.alpha, testFloatTolerance)
 
-        assertEquals(msg, x0.toFloat(), segment.startX, testFloatTolerance)
-        assertEquals(msg, y0.toFloat(), segment.startY, testFloatTolerance)
-        assertEquals(msg, z0.toFloat(), segment.startZ, testFloatTolerance)
+        assertEquals(msg, x1.toFloat(), section.centerX, testFloatTolerance)
+        assertEquals(msg, y1.toFloat(), section.centerY, testFloatTolerance)
+        assertEquals(msg, z1.toFloat(), section.centerZ, testFloatTolerance)
 
-        assertEquals(msg, x1.toFloat(), segment.endX, testFloatTolerance)
-        assertEquals(msg, y1.toFloat(), segment.endY, testFloatTolerance)
-        assertEquals(msg, z1.toFloat(), segment.endZ, testFloatTolerance)
-
-        assertEquals(msg, startR.toFloat(), segment.startRadius, testFloatTolerance)
-        assertEquals(msg, endR.toFloat(), segment.endRadius, testFloatTolerance)
-        assertEquals(msg, length.toFloat(), segment.length, testFloatTolerance)
+        assertEquals(msg, radius.toFloat(), section.radius, testFloatTolerance)
+        assertEquals(msg, length.toFloat(), section.prevLength, testFloatTolerance)
     }
 
     @Test
@@ -132,12 +133,12 @@ class BodyModelTest {
         val model = BodyModel(tailLength = 2.0, radius = tRadius, headOffset = tHeadOffset, headRadius = tHeadR)
             .apply { init(tStartX, tStartY, tStartZ, tStartAngle, 3.0) }
 
-        assertEquals(2, model.bodySegments.size)
+        assertEquals(3, model.bodySections.toList().size)
 
         // check we've reinited content to shorter sequence with new value
         model.init(0.0,0.0, 0.0, 0.0, 0.1)
-        assertEquals(1, model.bodySegments.size)
-        assertEquals(0.1f, model.bodySegments.first().length, testFloatTolerance)
+        assertEquals(2, model.bodySections.toList().size)
+        assertEquals(0.1f, model.bodySections.toList()[1].prevLength, testFloatTolerance)
     }
 
     @Test
@@ -462,7 +463,7 @@ class BodyModelTest {
         body.init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength)
         // as if feeding 0 - no increase in length
         body.advance(1.0, NO_ROTATE)
-        assertEquals(bodyLength.toFloat(), body.bodySegments.first().length, testFloatTolerance)
+        assertEquals(bodyLength.toFloat(), body.bodySections.toList()[1].prevLength, testFloatTolerance)
     }
 
     @Test
@@ -479,6 +480,6 @@ class BodyModelTest {
         body.feed(2.0)
         body.advance(advance, NO_ROTATE)
         // far advance adds at once, will sum up
-        assertEquals((bodyLength + 3.0).toFloat(), body.bodySegments.first().length, testFloatTolerance)
+        assertEquals((bodyLength + 3.0).toFloat(), body.bodySections.toList()[1].prevLength, testFloatTolerance)
     }
 }

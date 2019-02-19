@@ -12,38 +12,39 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 class RotationalShapeBuilderTest {
-    class TB(private val startX: Number, private val startY: Number, private val floorZ: Number) {
+    private class TDS(
+        override val centerX: Float,
+        override val centerY: Float,
+        override val centerZ: Float,
+        override val prevLength: Float,
+        override val radius: Float,
+        var mutableAlpha: Float
+    ) : IDirectedSection {
+        override val alpha: Float get() = mutableAlpha
+    }
 
-        private class TDS(
-            override val centerX: Float,
-            override val centerY: Float,
-            override val centerZ: Float,
-            override val prevLength: Float,
-            override val radius: Float,
-            var mutableAlpha: Float
-        ) : IDirectedSection {
-            override val alpha: Float get() = mutableAlpha
-        }
-
-        val segments = mutableListOf<IDirectedSection>()
+    private class TB(private val startX: Number, private val startY: Number, private val floorZ: Number) {
+        //val segments = mutableListOf<IDirectedSection>()
+        private val segmentsList = mutableListOf<IDirectedSection>()
+        val segments get() = segmentsList.asSequence()
 
         fun add(length: Number, radius: Number, deltaAngle: Number): TB {
             val last: IDirectedSection
             val newAngle: Double
 
-            if(segments.isEmpty()) {
+            if(segmentsList.isEmpty()) {
                 last = TDS(startX.toFloat(), startY.toFloat(), floorZ.toFloat(), 0f,
                     0f, deltaAngle.toFloat())
-                segments.add(last)
+                segmentsList.add(last)
                 newAngle = deltaAngle.toDouble()
             } else {
-                last = segments.last()
+                last = segmentsList.last()
                 newAngle = last.alpha + deltaAngle.toDouble()
                 (last as TDS).mutableAlpha = newAngle.toFloat()
                 // modify last alpha
             }
 
-            segments.add(TDS(
+            segmentsList.add(TDS(
                 (last.centerX + length.toDouble() * cos(newAngle)).toFloat(),
                 (last.centerY + length.toDouble() * sin(newAngle)).toFloat(),
                 floorZ.toFloat() + radius.toFloat(),
@@ -67,7 +68,7 @@ class RotationalShapeBuilderTest {
             .add(10, 1, 2).segments //
 
         assertArrayEquals(floatArrayOf(2f,2f),
-            body2sections.map { s -> s.alpha }.toFloatArray(), testFloatTolerance)
+            body2sections.toList().map { s -> s.alpha }.toFloatArray(), testFloatTolerance)
 
         val body4sections = TB(0.0, 0.0, 0.0)
             .add(1, 1, 1)
@@ -75,7 +76,7 @@ class RotationalShapeBuilderTest {
             .add(1, 1, 1)
             .segments
         assertArrayEquals(floatArrayOf(1f, 2f, 3f, 3f),
-            body4sections.map { s -> s.alpha }.toFloatArray(), testFloatTolerance)
+            body4sections.toList().map { s -> s.alpha }.toFloatArray(), testFloatTolerance)
 
 
 
@@ -83,7 +84,7 @@ class RotationalShapeBuilderTest {
         val body3sectionsCoords = TB(1,2,0)
             .add(1, 2, PI/2)
             .add(2, 1, PI/2)
-            .segments
+            .segments.toList()
         assertEquals(3, body3sectionsCoords.size)
         
         val sec1 = body3sectionsCoords.first()
@@ -473,4 +474,23 @@ class RotationalShapeBuilderTest {
         assertEquals(0.5f, geometry.vertexes[4])
         assertEquals(0.5f, geometry.vertexes[geometry.vertexCount*geometry.vertexFloatStride - 4])
     }
+
+
+    /**
+     * how angles are computed purely from coordinates
+     * */
+   /* @Test
+    fun `3d rotation`() {
+        val sections = listOf(
+            TDS(0f,0f,0f, 0f, 0f, 0f), // v0
+            TDS(10f,0f,0f, 0f, 1f, 0f), // v1..4
+            TDS(20f,10f,10f, 0f, 1f, 0f), // v5..8
+            TDS(20f,10f,20f, 0f, 1f, 0f)) // v9..12 completely upstream
+        val geometry = RotationalShapeBuilder(4, 0f, 1f, 0f)
+            .run {
+                update(sections)
+                geometry
+            }
+        // #1 vertex normal is
+    }*/
 }

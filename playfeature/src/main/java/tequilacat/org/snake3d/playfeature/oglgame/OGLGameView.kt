@@ -90,10 +90,9 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
         override lateinit var geometryBuffer: GeometryBuffer
 
-        fun update(segments: Collection<IBodySegmentModel>) {
+        fun update(segments: Sequence<IDirectedSection>) {
             val time0 = SystemClock.uptimeMillis()
-            TODO("bodyShape.update(segments) is commented out")
-            // bodyShape.update(segments)
+            bodyShape.update(segments)
 
             val time1 = SystemClock.uptimeMillis()
 
@@ -113,7 +112,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
             val time4 = SystemClock.uptimeMillis()
 
-            Log.d("render","body[${segments.size}] update: ${time1 - time0} / ${time2 - time1} / ${time3 - time2} / ${time4 - time3}")
+            Log.d("render","body[segments unknown] update: ${time1 - time0} / ${time2 - time1} / ${time3 - time2} / ${time4 - time3}")
         }
     }
 
@@ -219,7 +218,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         if (debugScene != null) {
             // bodyShapeObject.update(debugScene.bodySegments)
         } else {
-            bodyShapeObject.update(game.scene.bodyModel.bodySegments)
+            bodyShapeObject.update(game.scene.bodyModel.bodySections)
         }
     }
 
