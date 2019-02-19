@@ -5,9 +5,11 @@ import org.junit.Test
 import org.junit.Assert.*
 
 class BodyProportionsTest {
-    private val props = BodyProportions(1.0, 10.0,
-        3.0, 2.0, 0.8)
+    private val props = TailNeckBodyProportions(1.0, 10.0,
+        3.0, 2.0, 0.8) as IBodyProportions
 
+/*
+effectiveMaxRadius is not required anymore
     @Test
     fun effectiveMaxRadius() {
         assertEquals(0.0, props.effectiveMaxRadius(0.0), testDoubleTolerance)
@@ -19,7 +21,7 @@ class BodyProportionsTest {
     @Test(expected = IllegalArgumentException::class)
     fun `effectiveMaxRadius bad length`() {
         props.effectiveMaxRadius(-1.0)
-    }
+    }*/
 
     @Test(expected = IllegalArgumentException::class)
     fun `findRadius bad args 1`() {
@@ -81,5 +83,24 @@ class BodyProportionsTest {
 
         // face ring
         assertEquals(R * 0.8, props.findRadius(curLen, curLen), testDoubleTolerance)
+    }
+
+    /** old style: specified with taillen */
+    @Test
+    fun `no neck`() {
+        val noneck = TailLenBodyProportions(1.0, 2.0) as IBodyProportions
+        // for undersized all are linear
+        assertEquals(0.0, noneck.findRadius(0.0, 1.0), testDoubleTolerance)
+        assertEquals(0.5, noneck.findRadius(1.0, 1.0), testDoubleTolerance)
+
+        // for oversized linear until taillen then consstant
+
+        assertEquals(0.5, noneck.findRadius(1.0, 2.0), testDoubleTolerance)
+        assertEquals(1.0, noneck.findRadius(2.0, 2.0), testDoubleTolerance)
+
+        // for oversized, when tail becomes body the max R and then maxR too
+        assertEquals(1.0, noneck.findRadius(2.0, 4.0), testDoubleTolerance)
+        assertEquals(1.0, noneck.findRadius(3.0, 4.0), testDoubleTolerance)
+        assertEquals(1.0, noneck.findRadius(4.0, 4.0), testDoubleTolerance)
     }
 }

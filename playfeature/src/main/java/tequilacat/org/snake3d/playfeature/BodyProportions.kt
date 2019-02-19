@@ -1,14 +1,30 @@
 package tequilacat.org.snake3d.playfeature
 
-data class BodyProportions(
+
+interface IBodyProportions {
+    fun findRadius(distanceToTail: Double, totalLength: Double) : Double
+}
+
+data class TailLenBodyProportions(val maxRadius: Double, val tailLength: Double) : IBodyProportions {
+    override fun findRadius(distanceToTail: Double, totalLength: Double): Double {
+        return when {
+            distanceToTail < 0 || distanceToTail > totalLength ->
+                throw IllegalArgumentException("Distance to tail $distanceToTail is out of body length $totalLength")
+            distanceToTail < tailLength -> maxRadius * distanceToTail / tailLength
+            else -> maxRadius
+        }
+    }
+}
+
+data class TailNeckBodyProportions(
     val maxRadius: Double,
     val lengthToRadius: Double,
     val tailLenToRadius: Double,
     val neckLenToRadius: Double,
     val faceRadiusToRadius:Double
-) {
+) : IBodyProportions {
 
-    fun effectiveMaxRadius(totalLength: Double): Double {
+    private fun effectiveMaxRadius(totalLength: Double): Double {
         if (totalLength < 0) {
             throw IllegalArgumentException("negative len")
         }
@@ -17,7 +33,7 @@ data class BodyProportions(
         return if (effR < maxRadius) effR else maxRadius
     }
 
-    fun findRadius(distanceToTail: Double, totalLength: Double): Double {
+    override fun findRadius(distanceToTail: Double, totalLength: Double): Double {
         if (distanceToTail < 0 || distanceToTail > totalLength) {
             throw IllegalArgumentException("negative len")
         }
