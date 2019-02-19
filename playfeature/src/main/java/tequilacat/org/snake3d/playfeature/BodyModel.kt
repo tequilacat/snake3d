@@ -3,44 +3,20 @@ package tequilacat.org.snake3d.playfeature
 import java.util.*
 import kotlin.math.*
 
-interface IDirectedSection {
-    val centerX: Float
-    val centerY: Float
-    val centerZ: Float
-
-    val radius: Float
-
-    val prevLength: Float
-    // TODO get rid of alpha here
-    val alpha: Float
-}
-
-interface IDirectedSegment {
-    // TODO remove end[X-Z], leave in bodysegmentmodel or even in implementation only
+interface IBodySegmentModel {
     val startX: Float
     val startY: Float
     val startZ: Float
-
-    val length: Float
-    val endRadius: Float
-    // TODO get rid of alpha here
-    val alpha: Float
-}
-
-interface IBodySegmentModel : IDirectedSegment {
-    override val startX: Float
-    override val startY: Float
-    override val startZ: Float
 
     val endX: Float
     val endY: Float
     val endZ: Float
 
-    override val length: Float
+    val length: Float
     val startRadius: Float
-    override val endRadius: Float
+    val endRadius: Float
 
-    override val alpha: Float
+    val alpha: Float
     val alphaSinus: Float
     val alphaCosinus: Float
 }

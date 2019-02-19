@@ -1,16 +1,24 @@
-package tequilacat.org.snake3d.playfeature.oglgame
+package tequilacat.org.snake3d.playfeature.glutils
 
 import android.os.SystemClock
 import android.util.Log
-import tequilacat.org.snake3d.playfeature.IDirectedSection
-import tequilacat.org.snake3d.playfeature.IDirectedSegment
-import tequilacat.org.snake3d.playfeature.glutils.CoordUtils
-import tequilacat.org.snake3d.playfeature.glutils.Geometry
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-interface IBodyGeometryBuilder {
+interface IDirectedSection {
+    val centerX: Float
+    val centerY: Float
+    val centerZ: Float
+
+    val radius: Float
+
+    val prevLength: Float
+    // TODO get rid of alpha here
+    val alpha: Float
+}
+
+interface IRotationalGeometryBuilder {
     val geometry: Geometry
     fun update(segments: Iterable<IDirectedSection>)
 }
@@ -20,11 +28,11 @@ interface IBodyGeometryBuilder {
  * @param uPerLengthUnit how much U per 1.0 of run length
  * @param vStart texture V at angle 0
  */
-abstract class AbstractBodyGeometryBuilder(
+abstract class AbstractRotationalGeometryBuilder(
     val segmentFaceCount: Int,
     private val startAngle: Float,
     protected val uPerLengthUnit: Float, private val vStart: Float
-) : IBodyGeometryBuilder {
+) : IRotationalGeometryBuilder {
 
     private val segmentAngleSinCos = Array(segmentFaceCount) {
         Pair(
@@ -246,9 +254,9 @@ abstract class AbstractBodyGeometryBuilder(
     }
 }
 
-class BodyShapeBuilder(segmentFaceCount: Int, startAngle: Float, uPerLengthUnit: Float, vStart: Float,
-                       private val useWrapFace: Boolean = false) :
-    AbstractBodyGeometryBuilder(segmentFaceCount, startAngle, uPerLengthUnit, vStart) {
+class RotationalShapeBuilder(segmentFaceCount: Int, startAngle: Float, uPerLengthUnit: Float, vStart: Float,
+                             private val useWrapFace: Boolean = false) :
+    AbstractRotationalGeometryBuilder(segmentFaceCount, startAngle, uPerLengthUnit, vStart) {
 
     override fun rebuildGeometry(bodySegments: Iterable<IDirectedSection>) {
         val iter = bodySegments.iterator()
@@ -307,8 +315,8 @@ class RotationalGeometryBuilder {
      * @param distancesAndRadiuses <d,r>, <d,r>...  the 0 is appended automatically
      */
     fun build(distancesAndRadiuses: FloatArray, axisX: Float, axisY: Float, axisZ: Float, faceCount: Int): Geometry {
-        TODO("replace with BodyShapeBuilder or refactor anyway")
-        /*val rotationBuilder = BodyShapeBuilder(faceCount + 1, 0f, 1f, 0f,
+        TODO("replace with RotationalShapeBuilder or refactor anyway")
+        /*val rotationBuilder = RotationalShapeBuilder(faceCount + 1, 0f, 1f, 0f,
             true)
         rotationBuilder.setAxis(axisX, axisY, axisZ)
 

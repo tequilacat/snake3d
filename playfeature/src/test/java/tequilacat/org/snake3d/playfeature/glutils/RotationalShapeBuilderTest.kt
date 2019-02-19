@@ -1,4 +1,4 @@
-package tequilacat.org.snake3d.playfeature.oglgame
+package tequilacat.org.snake3d.playfeature.glutils
 
 import io.mockk.*
 import org.junit.After
@@ -7,12 +7,11 @@ import org.junit.Test
 
 import org.junit.Assert.*
 import tequilacat.org.snake3d.playfeature.*
-import tequilacat.org.snake3d.playfeature.glutils.Geometry
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
-class BodyShapeTest {
+class RotationalShapeBuilderTest {
     class TB(private val startX: Number, private val startY: Number, private val floorZ: Number) {
 
         private class TDS(
@@ -116,7 +115,7 @@ class BodyShapeTest {
 
     @Test
     fun `build basicfeatures`() {
-        val geom = BodyShapeBuilder(4, 0f, 1f, 0f)
+        val geom = RotationalShapeBuilder(4, 0f, 1f, 0f)
             .run {
                 update(TB(0.0, 0.0, 0.0).add(1.0, 1.0, 0.0).segments)
                 geometry
@@ -130,7 +129,7 @@ class BodyShapeTest {
     @Test
     fun indexes() {
         // BodyShape(4, testRadius,0f,1f, 0f)
-        val geom = BodyShapeBuilder(4, 0f, 1f, 0f)
+        val geom = RotationalShapeBuilder(4, 0f, 1f, 0f)
             .run {
                 update(TB(0.0, 0.0, 0.0)
                     .add(1.0, 1.0, 0.0) // 4 segments to fit test data
@@ -169,7 +168,7 @@ class BodyShapeTest {
         val NSEGMENTS_1 = 1
         val segments1 = makeSegments(NSEGMENTS_1)
         val nFaces = 4
-        val builder = BodyShapeBuilder(nFaces, 0f, 1f, 0f)
+        val builder = RotationalShapeBuilder(nFaces, 0f, 1f, 0f)
         builder.update(segments1)
         val prevIndexes = builder.geometry.indexes
         val prevVertexes = builder.geometry.vertexes
@@ -220,7 +219,7 @@ class BodyShapeTest {
 
         val startAngle1 = 1.0f // just some angle in Q1
         // make 5 so Z is never repeated for same section
-        val bodyShape =  BodyShapeBuilder(nFaces, startAngle1, 10f, 0f)
+        val bodyShape = RotationalShapeBuilder(nFaces, startAngle1, 10f, 0f)
         bodyShape.update(segments)
         val geometry = bodyShape.geometry
 
@@ -260,7 +259,7 @@ class BodyShapeTest {
     fun `vertex coordinates for 1 segment`() {
         val len = 4.0f
         val r = 2.0f
-        val builder = BodyShapeBuilder(4, 0f, 1f, 0f)
+        val builder = RotationalShapeBuilder(4, 0f, 1f, 0f)
         // 2 segments
         builder.update(TB(0.0, 0.0, 0.0)
             .add(len.toDouble(), r.toDouble(), 0.0).segments)
@@ -288,7 +287,7 @@ class BodyShapeTest {
         val r2 = 2f
         val l1 = 10f
         val l2 = 5f
-        val builder = BodyShapeBuilder(4, 0f, 1f, 0f)
+        val builder = RotationalShapeBuilder(4, 0f, 1f, 0f)
         builder.update(TB(0.0, 0.0, 0.0)
             .add(l1.toDouble(), r1.toDouble(), 0.0)
             .add(l2.toDouble(), r2.toDouble(), PI / 4).segments)
@@ -345,7 +344,7 @@ class BodyShapeTest {
         val l1 = 5f
         val l2 = 5f
 
-        val builder= BodyShapeBuilder(4, 0f, 1f, 0f)
+        val builder= RotationalShapeBuilder(4, 0f, 1f, 0f)
         // make 3 segments to test ring#2 since testing normals of 1st ring connected to tail is too complex
         builder.update(TB(0.0, 0.0, 0.0)
             .add(l1.toDouble(), r1.toDouble(), 0.0)
@@ -392,7 +391,7 @@ class BodyShapeTest {
         val length = 10.0
         val nFaceSegments = 4
 
-        val builder = BodyShapeBuilder(nFaceSegments, 0f, uPer1Length, 0f)
+        val builder = RotationalShapeBuilder(nFaceSegments, 0f, uPer1Length, 0f)
         builder.update(TB(0.0, 0.0, 0.0)
             .add(length, 2.0, 0.0)
             .segments)
@@ -420,7 +419,7 @@ class BodyShapeTest {
         val l3 = 2f
         val r1 = 0.5f
 
-        val builder = BodyShapeBuilder(nFaceSegments, 0f, uPer1Length, 0f)
+        val builder = RotationalShapeBuilder(nFaceSegments, 0f, uPer1Length, 0f)
         builder.update(TB(0.0, 0.0, 0.0)
             .add(l1.toDouble(), r1.toDouble(), 0.0)
             .add(l2.toDouble(), r1.toDouble(), PI / 4)
@@ -452,7 +451,7 @@ class BodyShapeTest {
         val l1 = 1f
 
         // make 2 segments (2 rings to check)
-        val geometry = BodyShapeBuilder(nFaceSegments, startAngle, 1f, 0f).run {
+        val geometry = RotationalShapeBuilder(nFaceSegments, startAngle, 1f, 0f).run {
             update(TB(0.0, 0.0, 0.0)
                 .add(l1.toDouble(), r1.toDouble(), 1.0)
                 .add(l1.toDouble(), r1.toDouble(), 2.0).segments)

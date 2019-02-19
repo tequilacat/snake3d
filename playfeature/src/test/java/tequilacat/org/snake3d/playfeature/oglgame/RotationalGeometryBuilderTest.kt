@@ -6,6 +6,7 @@ import org.junit.Test
 
 import org.junit.Assert.*
 import org.junit.Before
+import tequilacat.org.snake3d.playfeature.glutils.RotationalGeometryBuilder
 import tequilacat.org.snake3d.playfeature.mockAndroidStatics
 import tequilacat.org.snake3d.playfeature.testFloatTolerance
 import kotlin.math.hypot
@@ -26,7 +27,8 @@ class RotationalGeometryBuilderTest {
         // this adds 2 points at the ends implicitly, the rings are start and end of U
         // <d,r>, <d,r>
         val radiuses = floatArrayOf(0f, 1f, 2f, 1f)
-        val geom = RotationalGeometryBuilder().build(radiuses, aX, aY, aZ, faceCount)
+        val geom = RotationalGeometryBuilder()
+            .build(radiuses, aX, aY, aZ, faceCount)
 
         // added ultra-thin with U:1->0
         val realFC = faceCount + 1

@@ -3,10 +3,7 @@ package tequilacat.org.snake3d.playfeature.oglgame
 import android.opengl.Matrix
 import tequilacat.org.snake3d.playfeature.BodyModel
 import tequilacat.org.snake3d.playfeature.IBodySegmentModel
-import tequilacat.org.snake3d.playfeature.glutils.GeometryBuffer
-import tequilacat.org.snake3d.playfeature.glutils.GeometryPainter
-import tequilacat.org.snake3d.playfeature.glutils.ObjectContext
-import tequilacat.org.snake3d.playfeature.glutils.SceneContext
+import tequilacat.org.snake3d.playfeature.glutils.*
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -67,11 +64,13 @@ class DebugScene {
             Matrix.setIdentityM(it, 0)
         }
 
-        private val geomBuilder = BodyShapeBuilder(6,
+        private val geomBuilder = RotationalShapeBuilder(
+            6,
             3 * PI.toFloat() / 2,
             0.2f, // for yellow brown
             //0.5f, // good for grayscale
-            0f) as IBodyGeometryBuilder
+            0f
+        ) as IRotationalGeometryBuilder
 
         lateinit var geometryBuffer: GeometryBuffer
 

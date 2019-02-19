@@ -80,11 +80,13 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         AbstractDrawableGameObject(painter, ObjectContext(ObjColors.BODY.rgb, bodyTextureId)) {
 
         // start texture V at bottom lowest point (3 * PI / 2)
-        private val bodyShape = BodyShapeBuilder(10,
+        private val bodyShape = RotationalShapeBuilder(
+            10,
             3 * PI.toFloat() / 2,
             0.2f, // for yellow brown
             //0.5f, // good for grayscale
-            0f) as IBodyGeometryBuilder
+            0f
+        ) as IRotationalGeometryBuilder
 
         override lateinit var geometryBuffer: GeometryBuffer
 
