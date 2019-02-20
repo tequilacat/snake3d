@@ -233,7 +233,7 @@ abstract class AbstractRotationalGeometryBuilder(
      * */
     protected fun storeVertex(vertexFloatIndex:Int, x: Float, y: Float, z: Float, u: Float, v: Float) {
         var i = vertexFloatIndex
-//         println("storeVertex @$vertexFloatIndex [#${vertexFloatIndex / 8}]: $x, $y, $z; uv = $u $v")
+//        println("storeVertex @$vertexFloatIndex [#${vertexFloatIndex / 8}]: $x, $y, $z; uv = $u $v")
 
         if(rotateAroundAxis) {
             // hardcoded! replace OX with 0Z

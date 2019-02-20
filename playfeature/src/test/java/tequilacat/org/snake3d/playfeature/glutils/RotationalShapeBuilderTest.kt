@@ -336,6 +336,53 @@ class RotationalShapeBuilderTest {
     }
 
     /**
+     * check outer vertexes
+     */
+    @Test
+    fun `vertex rotated coordinates for 3 segments`() {
+        val builder = RotationalShapeBuilder(4, 0f, 1f, 0f)
+        builder.update(TB(0.0, 0.0, 0.0)
+            .add(10, 1, 0.0)
+            .add(10, 1, PI/2)
+            .add(10, 1, PI/2).segments)
+        val stride = builder.geometry.vertexFloatStride
+        val vertexes = builder.geometry.vertexes
+        val sin45 = sin(PI/4).toFloat()
+
+        assertArrayEquals(floatArrayOf(0f, 0f, 0f), vertexes.sliceArray(0..2), testFloatTolerance)
+
+        // 1st ring
+        assertArrayEquals(
+            floatArrayOf(10f + sin45, -sin45, 1f),
+            vertexes.sliceArray((1 * stride)..(1 * stride + 2)), testFloatTolerance)
+        assertArrayEquals(
+            floatArrayOf(10f, 0f, 2f),
+            vertexes.sliceArray((2 * stride)..(2 * stride + 2)), testFloatTolerance)
+
+        // 2nd ring
+        assertArrayEquals(
+            floatArrayOf(10f + sin45, 10f + sin45, 1f),
+            vertexes.sliceArray((5 * stride)..(5 * stride + 2)), testFloatTolerance)
+        assertArrayEquals(
+            floatArrayOf(10f, 10f, 2f),
+            vertexes.sliceArray((6 * stride)..(6 * stride + 2)), testFloatTolerance)
+
+        // 3nd ring
+        assertArrayEquals(
+            floatArrayOf(0f, 11f, 1f),
+            vertexes.sliceArray((9 * stride)..(9 * stride + 2)), testFloatTolerance)
+        assertArrayEquals(
+            floatArrayOf(0f, 10f, 2f),
+            vertexes.sliceArray((10 * stride)..(10 * stride + 2)), testFloatTolerance)
+
+        // nose
+        assertArrayEquals(
+            floatArrayOf(0f, 10f, 1f),
+            vertexes.sliceArray((13 * stride)..(13 * stride + 2)), testFloatTolerance)
+    }
+
+
+    /**
      * test that each vertex in a triangle has same normal which is normalized -
      * dont compar to the normal of its triangle!
      * */
