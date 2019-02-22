@@ -218,7 +218,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         if (debugScene != null) {
             // bodyShapeObject.update(debugScene.bodySegments)
         } else {
-            bodyShapeObject.update(game.scene.bodyModel.bodySections)
+            bodyShapeObject.update(game.scene.bodyModel.bodyAndHeadSections)
         }
     }
 

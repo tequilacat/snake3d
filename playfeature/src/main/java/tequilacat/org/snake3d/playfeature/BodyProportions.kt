@@ -13,14 +13,16 @@ interface IBodyProportions {
     fun segmentRadius(index: Int): Double
 }
 
-// TODO remove TailLenBodyProportions after body shaping is truly dynamic
+// TODO move TailLenBodyProportions to test utils after body shaping is truly dynamic
 /**
  * previously hardcoded behaviour when theres tail length expanding to maxRadius,
  * and same radius is kept to the nose point
  * */
 class TailLenBodyProportions(
     private val maxRadius: Double, private val tailLength: Double,
-    override val headOffset: Double, override val headRadius: Double) : IBodyProportions {
+    override val headOffset: Double, private val headRadiusToNeckRatio: Double) : IBodyProportions {
+
+    override var headRadius: Double = 0.0
 
     private var curLength: Double = 0.0
 
@@ -28,6 +30,9 @@ class TailLenBodyProportions(
         if(curLength < 0)
             throw IllegalArgumentException("Distance to tail $curLength is negative")
         curLength = bodyLength
+
+        val lastR = if (curLength >= tailLength) maxRadius else maxRadius * curLength / tailLength
+        headRadius = if (headOffset == 0.0) lastR else lastR * headRadiusToNeckRatio
     }
 
     override val segmentCount get() = if(curLength > tailLength) 2 else 1

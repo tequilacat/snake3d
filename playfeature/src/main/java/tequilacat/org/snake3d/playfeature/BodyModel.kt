@@ -57,29 +57,38 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
     }
 
 
-    private class TailSection : IDirectedSection, IDoubleDirectedSection {
+    private val tailSection = SingleSection()
+    private val headSection = SingleSection()
+
+    private class SingleSection : IDirectedSection, IDoubleDirectedSection {
         override var dCenterX: Double = 0.0
         override var dCenterY: Double = 0.0
         override var dCenterZ: Double = 0.0
         override var dAlpha: Double = 0.0
 
-        override val dRadius: Double = 0.0
-        override val dPrevLength: Double = 0.0
+        override var dRadius: Double = 0.0
+        override var dPrevLength: Double = 0.0
 
+        fun setValues(x: Double, y: Double, z: Double, r: Double, alpha: Double, length: Double) {
+            dCenterX = x
+            dCenterY = y
+            dCenterZ = z
+            dAlpha = alpha
+            dRadius = r
+            dPrevLength = length
+        }
 
         fun setFrom(tailSegment: BodySegmentModel) {
-            dCenterX = tailSegment.dStartX
-            dCenterY = tailSegment.dStartY
-            dCenterZ = tailSegment.dStartZ
-            dAlpha = tailSegment.dAlpha
+            setValues(tailSegment.dStartX, tailSegment.dStartY, tailSegment.dStartZ, 0.0, tailSegment.dAlpha,
+                0.0)
         }
 
         override val alpha get() = dAlpha.toFloat()
         override val centerX get() = dCenterX.toFloat()
         override val centerY get() = dCenterY.toFloat()
         override val centerZ get() = dCenterZ.toFloat()
-        override val radius = 0f
-        override val prevLength = 0f
+        override val radius get() = dRadius.toFloat()
+        override val prevLength get() = dPrevLength.toFloat()
     }
 
     private class BodySegmentModel(
@@ -150,12 +159,31 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
 
     private val bodySegmentsImpl = LinkedList<BodySegmentModel>()
 
-    private val tailSection = TailSection()
-
     val bodySections : Sequence<IDirectedSection> get() = sequence {
         tailSection.setFrom(bodySegmentsImpl.first)
         yield(tailSection as IDirectedSection)
         yieldAll(bodySegmentsImpl)
+    }
+
+    // body sections with extra section for head
+    val bodyAndHeadSections : Sequence<IDirectedSection> get() = sequence {
+        yieldAll(bodySections)
+        // add section of head R ahead
+        if (bodyProportions.headOffset > 0) {
+            yield(headSection)
+        }
+    }
+
+    private fun updateHeadSection() {
+        if (bodyProportions.headOffset > 0) {
+            val lastSegment = bodySegmentsImpl.last
+            val lastR = bodyProportions.headRadius// lastSegment.dEndRadius * 1.5
+            val headOffset = bodyProportions.headOffset
+            headSection.setValues(
+                lastSegment.dEndX + cos(lastSegment.dAlpha) * headOffset,
+                lastSegment.dEndY + sin(lastSegment.dAlpha) * headOffset, floorZ + lastR,
+                lastR, lastSegment.dAlpha, headOffset)
+        }
     }
 
     /**
@@ -239,6 +267,8 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
         dHeadY = last.dEndY + headDirectionSinus * bodyProportions.headOffset
 
         viewDirection = last.dAlpha.toFloat()
+
+        updateHeadSection()
     }
 
     private fun adjustRadiuses(

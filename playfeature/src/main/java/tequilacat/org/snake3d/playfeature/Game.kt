@@ -177,8 +177,8 @@ class Game(private val addObstacles: Boolean = true) {
 
     private class GameScene(private val level: Level) : IGameScene {
 
-        // so far head is just forward hemisphere
-        override val bodyModel = BodyModel(TailLenBodyProportions(R_HEAD, BODY_TAIL_LEN, 0.0, R_HEAD))
+        override val bodyModel = BodyModel(TailLenBodyProportions(R_HEAD, BODY_TAIL_LEN,
+            R_HEAD / 2, R_HEAD * 1.5))
 
         override val fieldWidth: Float = level.fieldWidth.toFloat()
         override val fieldHeight: Float = level.fieldHeight.toFloat()
