@@ -145,7 +145,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         game.running = true
 
         obstacleTextureId = loadTexture(context, R.raw.cokecan_graphics)
-        pickableTextureId = loadTexture(context, R.raw.guinnes)
+        pickableTextureId = loadTexture(context, R.raw.penguinness)
         floorTileTextureId = loadTexture(context, R.raw.oldtiles)
         bodyTextureId = loadTexture(context, R.raw.snake_yellowbrown)
 //        bodyTextureId = loadTexture(context, R.raw.snake_grayscale_hires)
