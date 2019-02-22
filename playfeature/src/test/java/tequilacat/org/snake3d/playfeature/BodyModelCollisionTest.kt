@@ -13,7 +13,7 @@ class BodyModelCollisionTest {
     ) : IGameScene {
         override fun remove(collidingObj: IFieldObject) {}
         // Placeholder
-        override val bodyModel = BodyModel(1.0, 1.0, 0.0, 0.0)
+        override val bodyModel = BodyModel(TailLenBodyProportions(1.0, 1.0, 0.0, 0.0))
     }
 
     private val headOffset = 0.5
@@ -26,7 +26,7 @@ class BodyModelCollisionTest {
         val bodyRadius = 1.0
 
         val offset = bodyLen + headOffset
-        return BodyModel(1.0, bodyRadius, headOffset, headR).apply {
+        return BodyModel(TailLenBodyProportions(bodyRadius, 1.0, headOffset, headR)).apply {
             init(headCenterX - cos(headAngle) * offset, headCenterY - sin(headAngle) * offset, 0.0, headAngle, bodyLen)
         }
     }
@@ -50,7 +50,7 @@ class BodyModelCollisionTest {
         var lastY = coords[1]
 
         val firstSegmentLen = hypot(coords[2]-coords[0], coords[3] - coords[1])
-        val model = BodyModel(firstSegmentLen, radius, headOffset, headRadius)
+        val model = BodyModel(TailLenBodyProportions(radius, firstSegmentLen, headOffset, headRadius))
 
         for (i in 2 until coords.size step 2) {
 
@@ -141,7 +141,6 @@ class BodyModelCollisionTest {
 
     @Test
     fun `collision to objects`() {
-        // TODO test by distance between head center and body end, not my proximity
         // so far test by distance between centers
         val headX = 5.0
         val headY = 5.0
@@ -185,7 +184,7 @@ class BodyModelCollisionTest {
 
         val objR = 0.01 // very small for test purposes
 
-        val body = BodyModel(1.0, bodyRadius, headOffset, headRadius).apply {
+        val body = BodyModel(TailLenBodyProportions(bodyRadius, 1.0, headOffset, headRadius)).apply {
             init(5.0, 5.0, 0.0, angle, bodyLen)
         }
 
@@ -241,7 +240,7 @@ class BodyModelCollisionTest {
         // test that closest and smallest segments do not trigger collision
         // 11 segments by 0.2r
 
-        BodyModel(1000.0, 1.0, 1.0, 1.0).apply {
+        BodyModel(TailLenBodyProportions(1.0, 1000.0, 1.0, 1.0)).apply {
             init(10.0, 10.0, 10.0, 0.0, 0.2)
             advance(0.2, 0.01)
             advance(0.2, -0.01)
@@ -266,9 +265,9 @@ class BodyModelCollisionTest {
         val totalLen = 9.0
         val headR = 10.0 // HUGE head
 
-        BodyModel(1000.0, 1.0, 0.0, headR).apply {
+        BodyModel(TailLenBodyProportions(1.0, 1000.0, 0.0, headR)).apply {
             init(100.0, 100.0, 10.0, 0.0, totalLen)
-        }.checkCollisions(TestScene(1000f,1000f))
+        }.checkCollisions(TestScene(1000f, 1000f))
             .assertNone()
     }
 

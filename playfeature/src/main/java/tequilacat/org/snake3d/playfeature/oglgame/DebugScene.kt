@@ -26,8 +26,8 @@ class DebugScene {
 
     val cameraPosition = positionCamera(8, 9, 1.0, 270)
 
-    private val bodies = arrayOf(
-        DebugBodyObj(
+    private val bodies = arrayOf<DebugBodyObj>(
+        /*DebugBodyObj(
             BodyModel(TAILLEN, tRadius, 0.0, tRadius)
                 .run {
                     init(6.0, 4.0, 2.1, 0.5, 2.0)
@@ -44,7 +44,7 @@ class DebugScene {
                 //advance(3.0, 0.0)
                 bodySections
             }
-        )
+        )*/
     )
 
     data class TestObjectContext(val painter:GeometryPainter, val textureId: Int)

@@ -16,6 +16,9 @@ import kotlin.math.sqrt
 const val testFloatTolerance = 0.00001f
 const val testDoubleTolerance = 0.000001
 
+fun floatArrayOfNumbers(vararg numbers: Number):FloatArray =
+    numbers.map { it -> it.toFloat()}.toFloatArray()
+
 fun mockAndroidStatics() {
     mockkStatic(SystemClock::class)
     mockkStatic(Matrix::class)

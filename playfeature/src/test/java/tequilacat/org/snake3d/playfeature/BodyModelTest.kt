@@ -10,6 +10,9 @@ import kotlin.math.sin
 
 class BodyModelTest {
 
+    // for tests that must fail until they don't test for new segments anymore (to be replaced by NotSegmentedProportions)
+
+
     private val TAILLEN_LARGE_100 = 100.0
     /** indicates that no shortening should take place */
     private val FOODLENGTH_LARGE = 100.0
@@ -30,7 +33,9 @@ class BodyModelTest {
         advanceLengths: DoubleArray,
         advanceAngles: DoubleArray
     ) {
-        val body = BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
+        val body = BodyModel(
+            TailLenBodyProportions(tRadius, tailLen, tHeadOffset, tHeadR)
+        )
             .apply {
                 init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
                 feed(FOODLENGTH_LARGE)
@@ -61,17 +66,12 @@ class BodyModelTest {
             val x = prevSection.centerX.toDouble()
             val y = prevSection.centerY.toDouble()
 
-//            val startR = when {
-//                (i == 0) -> 0.0
-//                totalLen >= tailLen -> tRadius
-//                else -> (totalLen / tailLen) * tRadius
-//            }
             val expLengh = expectedLengths[i]
             val endR =
                 (if (totalLen + expLengh >= tailLen) 1.0 else (totalLen + expLengh) / tailLen) * tRadius
             val expAngle = expectedAngles[i]
 
-            assertSegment("[$i]",
+            assertSegment("section #$i",
                 thisSegment, expAngle,
                 x + cos(expAngle) * expLengh, y + sin(expAngle) * expLengh, floorZ + endR,
                 endR, expLengh)
@@ -87,41 +87,14 @@ class BodyModelTest {
         x1: Double, y1: Double, z1: Double,
         radius: Double, length: Double) {
 
-        assertEquals(msg, alpha.toFloat(), section.alpha, testFloatTolerance)
+        assertEquals("$msg alpha", alpha.toFloat(), section.alpha, testFloatTolerance)
 
-        assertEquals(msg, x1.toFloat(), section.centerX, testFloatTolerance)
-        assertEquals(msg, y1.toFloat(), section.centerY, testFloatTolerance)
-        assertEquals(msg, z1.toFloat(), section.centerZ, testFloatTolerance)
+        assertEquals("$msg x", x1.toFloat(), section.centerX, testFloatTolerance)
+        assertEquals("$msg y", y1.toFloat(), section.centerY, testFloatTolerance)
 
-        assertEquals(msg, radius.toFloat(), section.radius, testFloatTolerance)
-        assertEquals(msg, length.toFloat(), section.prevLength, testFloatTolerance)
-    }
-
-    @Test
-    fun `init segments short`() {
-        // shorter than tail
-        val tailLen = 2.0
-        val initLen = 1.0
-        BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
-            .apply {
-                init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
-            }.assertSegments(
-                tailLen = 2.0, expectedLengths = doubleArrayOf(1.0), expectedAngles = doubleArrayOf(tStartAngle)
-            )
-    }
-
-    @Test
-    fun `init segments long`() {
-        // original length is longer than tail = 2 segments
-        val initLen = 1.5
-        val len2 = 0.5
-        val tailLen = 1.0
-
-        BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
-            .apply {
-                init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
-            }.assertSegments(tailLen, doubleArrayOf(tailLen, len2),
-                doubleArrayOf(tStartAngle, tStartAngle))
+        assertEquals("$msg length", length.toFloat(), section.prevLength, testFloatTolerance)
+        assertEquals("$msg z", z1.toFloat(), section.centerZ, testFloatTolerance)
+        assertEquals("$msg radius", radius.toFloat(), section.radius, testFloatTolerance)
     }
 
     /**
@@ -130,8 +103,11 @@ class BodyModelTest {
     @Test
     fun reinit() {
         // 2 segments
-        val model = BodyModel(tailLength = 2.0, radius = tRadius, headOffset = tHeadOffset, headRadius = tHeadR)
-            .apply { init(tStartX, tStartY, tStartZ, tStartAngle, 3.0) }
+        val model = BodyModel(NotSegmentedProportions(tRadius, tHeadOffset, tHeadR))// NotImplProportions(2.0, tRadius, tHeadOffset, tHeadR))
+            .apply {
+                init(tStartX, tStartY, tStartZ, tStartAngle, 3.0)
+                advance(1.0, 0.1)
+            }
 
         assertEquals(3, model.bodySections.toList().size)
 
@@ -241,7 +217,7 @@ class BodyModelTest {
         val len2 = 0.5
         val tailLen = 2.0
 
-        BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
+        BodyModel(TailLenBodyProportions(tRadius, tailLen, tHeadOffset, tHeadR))
             .apply {
                 init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
                 feed(FOODLENGTH_LARGE)
@@ -302,7 +278,7 @@ class BodyModelTest {
         val initLen = 0.2
         val delta = 2.0
 
-        BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
+        BodyModel(TailLenBodyProportions(tRadius, tailLen, tHeadOffset, tHeadR))
             .apply {
                 init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
                 advance(delta, NO_ROTATE)
@@ -318,7 +294,7 @@ class BodyModelTest {
         val initLen = 0.1
         val delta = 0.1
 
-        BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
+        BodyModel(TailLenBodyProportions(tRadius, tailLen, tHeadOffset, tHeadR))
             .apply {
                 init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
                 // make 2 segments: advance without shorten, 2 segments of L=0.1
@@ -344,7 +320,7 @@ class BodyModelTest {
         val delta = 0.8
 
         // 2 fragments
-        BodyModel(tailLen, tRadius, tHeadOffset, tHeadR)
+        BodyModel(TailLenBodyProportions(tRadius, tailLen, tHeadOffset, tHeadR))
             .apply {
                 init(tStartX, tStartY, tStartZ, tStartAngle, initLen)
                 advance(delta, NO_ROTATE)
@@ -362,7 +338,8 @@ class BodyModelTest {
         val startY = 4.0
         val offset = 0.5
 
-        val body = BodyModel(1.0, 1.0, offset, 2.0).apply {
+        val body = BodyModel(NotSegmentedProportions(tRadius, offset, 2.0))
+            .apply {
             init(startX, startY, 0.0, angle, bodyLength)
         }
 
@@ -385,9 +362,8 @@ class BodyModelTest {
         val angle = 0.0// tStartAngle
 
         // test on single segment
-        val body = BodyModel(TAILLEN_LARGE_100, 1.0, 1.0, 2.0).apply {
-            init(tStartX, tStartY, tStartZ, angle, bodyLength)
-        }
+        val body = BodyModel(TailLenBodyProportions(tRadius, TAILLEN_LARGE_100, 1.0, 2.0))
+            .apply { init(tStartX, tStartY, tStartZ, angle, bodyLength) }
 
         body.feed(feed)
         body.advance(advance, NO_ROTATE)
@@ -404,7 +380,7 @@ class BodyModelTest {
         val advance = 1.0
 
         // test on single segment
-        val body = BodyModel(TAILLEN_LARGE_100, 1.0, 1.0, 2.0).apply {
+        val body = BodyModel(TailLenBodyProportions(tRadius, TAILLEN_LARGE_100, 1.0, 2.0)).apply {
             init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength)
         }
 
@@ -423,7 +399,8 @@ class BodyModelTest {
         val advance = 1.0
 
         // test on single segment
-        val body = BodyModel(TAILLEN_LARGE_100, 1.0, 1.0, 2.0).apply {
+        val body = BodyModel(TailLenBodyProportions(tRadius, TAILLEN_LARGE_100, 1.0, 2.0))
+            .apply {
             init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength)
         }
 
@@ -455,9 +432,8 @@ class BodyModelTest {
         val bodyLength = 10.0
 
         // test on single segment
-        val body = BodyModel(TAILLEN_LARGE_100, 1.0, 1.0, 2.0).apply {
-            init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength)
-        }
+        val body = BodyModel(TailLenBodyProportions(tRadius, TAILLEN_LARGE_100, 1.0, 2.0))
+            .apply { init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength) }
 
         body.feed(1.5)
         body.init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength)
@@ -472,9 +448,8 @@ class BodyModelTest {
         val advance = 10.0
 
         // test on single segment
-        val body = BodyModel(TAILLEN_LARGE_100, 1.0, 1.0, 2.0).apply {
-            init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength)
-        }
+        val body = BodyModel(TailLenBodyProportions(tRadius, TAILLEN_LARGE_100, 1.0, 2.0))
+            .apply { init(tStartX, tStartY, tStartZ, tStartAngle, bodyLength) }
 
         body.feed(1.0)
         body.feed(2.0)
@@ -482,4 +457,5 @@ class BodyModelTest {
         // far advance adds at once, will sum up
         assertEquals((bodyLength + 3.0).toFloat(), body.bodySections.toList()[1].prevLength, testFloatTolerance)
     }
+
 }

@@ -1,41 +1,55 @@
 package tequilacat.org.snake3d.playfeature
 
-data class BodyProportions(
-    val maxRadius: Double,
-    val lengthToRadius: Double,
-    val tailLenToRadius: Double,
-    val neckLenToRadius: Double,
-    val faceRadiusToRadius:Double
-) {
+/**
+ * defines "breaks" in linear advance of radius on imaginary straight body. */
+interface IBodyProportions {
+    val segmentCount: Int
 
-    fun effectiveMaxRadius(totalLength: Double): Double {
-        if (totalLength < 0) {
-            throw IllegalArgumentException("negative len")
-        }
+    val headOffset: Double
+    val headRadius: Double
 
-        val effR = totalLength / lengthToRadius
-        return if (effR < maxRadius) effR else maxRadius
+    fun resize(bodyLength: Double)
+    fun segmentEndFromTail(index: Int): Double
+    fun segmentRadius(index: Int): Double
+}
+
+// TODO remove TailLenBodyProportions after body shaping is truly dynamic
+/**
+ * previously hardcoded behaviour when theres tail length expanding to maxRadius,
+ * and same radius is kept to the nose point
+ * */
+class TailLenBodyProportions(
+    private val maxRadius: Double, private val tailLength: Double,
+    override val headOffset: Double, override val headRadius: Double) : IBodyProportions {
+
+    private var curLength: Double = 0.0
+
+    override fun resize(bodyLength: Double) {
+        if(curLength < 0)
+            throw IllegalArgumentException("Distance to tail $curLength is negative")
+        curLength = bodyLength
     }
 
-    fun findRadius(distanceToTail: Double, totalLength: Double): Double {
-        if (distanceToTail < 0 || distanceToTail > totalLength) {
-            throw IllegalArgumentException("negative len")
+    override val segmentCount get() = if(curLength > tailLength) 2 else 1
+
+    override fun segmentEndFromTail(index: Int): Double {
+        val maxSegments = segmentCount
+        if (index < 0 || index >= maxSegments)
+            throw IllegalArgumentException("Bad segment index $index of allowed $maxSegments")
+
+        return if(maxSegments == 1 || index == 1) {
+            curLength
+        } else {
+            tailLength
         }
+    }
 
-        val effR = effectiveMaxRadius(totalLength)
-        val tailLen = tailLenToRadius * effR
+    override fun segmentRadius(index: Int): Double {
+        val maxSegments = segmentCount
+        if (index < 0 || index >= maxSegments)
+            throw IllegalArgumentException("Bad segment index $index of allowed $maxSegments")
 
-        if(distanceToTail < tailLen) {
-            return effR * distanceToTail / tailLen
-        }
-
-        val distanceToNose = totalLength - distanceToTail
-        val neckLen = neckLenToRadius * effR
-
-        if(distanceToNose < neckLen) {
-            return effR * (faceRadiusToRadius + (1 - faceRadiusToRadius) * distanceToNose / neckLen)
-        }
-
-        return effR
+        return if(curLength >= tailLength) maxRadius
+        else maxRadius * curLength / tailLength
     }
 }
