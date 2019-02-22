@@ -9,7 +9,8 @@ import kotlin.random.Random
  */
 class Game(private val addObstacles: Boolean = true) {
     private data class Level(val fieldWidth: Double, val fieldHeight: Double, val pickableCount: Int, val obstacleCount: Int)
-    private val levels = listOf(Level(100.0, 100.0, 20, 5))
+    private val levels = listOf(
+        Level(75.0, 75.0, 25, 10))
     private var currentLevelIndex = 0
 
     private lateinit var sceneImpl: GameScene
