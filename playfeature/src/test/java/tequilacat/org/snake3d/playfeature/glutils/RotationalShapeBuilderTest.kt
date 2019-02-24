@@ -13,14 +13,14 @@ import kotlin.math.sin
 
 class RotationalShapeBuilderTest {
     private class TDS(
-        override val centerX: Float,
-        override val centerY: Float,
-        override val centerZ: Float,
-        override val prevLength: Float,
-        override val radius: Float,
+        override val dCenterX: Double,
+        override val dCenterY: Double,
+        override val dCenterZ: Double,
+        override val dPrevLength: Double,
+        override val dRadius: Double,
         var mutableAlpha: Float
     ) : IDirectedSection {
-        override val alpha: Float get() = mutableAlpha
+        override val dAlpha: Double get() = mutableAlpha.toDouble()
     }
 
     private class TB(private val startX: Number, private val startY: Number, private val floorZ: Number) {
@@ -33,8 +33,8 @@ class RotationalShapeBuilderTest {
             val newAngle: Double
 
             if(segmentsList.isEmpty()) {
-                last = TDS(startX.toFloat(), startY.toFloat(), floorZ.toFloat(), 0f,
-                    0f, deltaAngle.toFloat())
+                last = TDS(startX.toDouble(), startY.toDouble(), floorZ.toDouble(), 0.0,
+                    0.0, deltaAngle.toFloat())
                 segmentsList.add(last)
                 newAngle = deltaAngle.toDouble()
             } else {
@@ -45,10 +45,10 @@ class RotationalShapeBuilderTest {
             }
 
             segmentsList.add(TDS(
-                (last.centerX + length.toDouble() * cos(newAngle)).toFloat(),
-                (last.centerY + length.toDouble() * sin(newAngle)).toFloat(),
-                floorZ.toFloat() + radius.toFloat(),
-                length.toFloat(), radius.toFloat(), newAngle.toFloat()))
+                (last.centerX + length.toDouble() * cos(newAngle)),
+                (last.centerY + length.toDouble() * sin(newAngle)),
+                floorZ.toDouble() + radius.toDouble(),
+                length.toDouble(), radius.toDouble(), newAngle.toFloat()))
 
             return this
         }

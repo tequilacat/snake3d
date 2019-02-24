@@ -1,10 +1,18 @@
 package tequilacat.org.snake3d.playfeature
 
+import io.mockk.unmockkAll
+import org.junit.After
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
 import kotlin.math.*
 
 class BodyModelCollisionTest {
+    @Before
+    fun beforeTests() = mockAndroidStatics(true)
+
+    @After
+    fun afterTests() = unmockkAll()
 
     private data class TestScene(
         override val fieldWidth: Float,
@@ -40,59 +48,6 @@ class BodyModelCollisionTest {
         val body = body(5.0, 5.0)
         assertEquals((5 - cos(headAngle) * headOffset).toFloat(), body.bodySections.last().centerX, testFloatTolerance)
         assertEquals((5 - sin(headAngle) * headOffset).toFloat(), body.bodySections.last().centerY, testFloatTolerance)
-    }
-
-    private fun initByCoords(radius: Double, headOffset: Double, headRadius: Double, vararg coords: Double): BodyModel {
-        //val model = this
-        val floorZ = 0.0
-
-        var lastX = coords[0]
-        var lastY = coords[1]
-
-        val firstSegmentLen = hypot(coords[2]-coords[0], coords[3] - coords[1])
-        val model = BodyModel(TailLenBodyProportions(radius, firstSegmentLen, headOffset, headRadius))
-
-        for (i in 2 until coords.size step 2) {
-
-            val x = coords[i]
-            val y = coords[i+1]
-
-            val angle = atan2(y - lastY, x - lastX)
-            val length = hypot(y - lastY, x - lastX)
-
-            if(i == 2) {
-                model.init(lastX, lastY, floorZ, angle, length)
-                // never shrink
-                model.feed(1000000.0)
-            } else {
-                model.advance(length, angle - model.viewDirection)
-            }
-
-            lastX = x
-            lastY = y
-        }
-
-        // should be already tested by BodyModelTest
-
-        // self test: all coords must be exactly same - set tail length to extra larg
-/*        val sections = model.bodySections.toList()
-        assertEquals(coords.size / 2, sections.size)
-
-        var i = 0
-        for(segment in model.bodySegments){
-            assertEquals(coords[i].toFloat(), segment.startX, testFloatTolerance)
-            assertEquals(coords[i+1].toFloat(), segment.startY, testFloatTolerance)
-
-            if (i + 2 < coords.size) {
-                assertEquals(coords[i + 2].toFloat(), segment.endX, testFloatTolerance)
-                assertEquals(coords[i + 3].toFloat(), segment.endY, testFloatTolerance)
-            }
-
-            i += 2
-        }
-
-        assertEquals(model.bodySegments.last().endRadius, radius.toFloat(), testFloatTolerance)*/
-        return model
     }
 
     // active zone is head
@@ -281,7 +236,7 @@ class BodyModelCollisionTest {
         val hRadius = 2.0
         val radius = 1.0
 
-        initByCoords(
+        BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             52.0, 52.0, // out of cone clearly: no collision
             100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
@@ -302,7 +257,7 @@ class BodyModelCollisionTest {
         val margin = 0.01
 
 
-        initByCoords(
+        BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             50.0, 48.0 - margin, // ahead of head
             100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
@@ -322,7 +277,7 @@ class BodyModelCollisionTest {
         val radius = 1.0
         val margin = 0.01
 
-        initByCoords(
+        BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             52 + margin, 55.0, // almost touching cone but little outside
             100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
@@ -342,7 +297,7 @@ class BodyModelCollisionTest {
         val radius = 1.0
         val margin = 0.01
 
-        initByCoords(
+        BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             52 - margin, 53.0, // exactly touching cone and little inside
             100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
@@ -361,7 +316,7 @@ class BodyModelCollisionTest {
         val hRadius = 2.0
         val radius = 1.0
 
-        initByCoords(
+        BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             50.0, 49.0, // within head
             100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
@@ -379,7 +334,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing neck not touching head`() {
         val hOffset = 10.0
-        initByCoords(
+        BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             10.0, 55.0, 20.0, 55.0, // crosses neck without touching head - @y=55
             100.0, 55.0, 100.0, 100.0, 50.0, 100.0,
@@ -395,7 +350,7 @@ class BodyModelCollisionTest {
     fun `self crossing neck diagonal`() {
         val hOffset = 10.0
         // crosses neck without touching head - @y=55
-        initByCoords(
+        BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             10.0, 55.0, 45.0, 55.0, 55.0, 50.0,
             100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
@@ -411,7 +366,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing head`() {
         val hOffset = 10.0
-        initByCoords(
+        BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             10.0, 47.5, 20.0, 47.5, // crosses head - y = 47.5
             100.0, 47.5, 100.0, 100.0, 50.0, 100.0,
@@ -427,7 +382,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing ahead of head`() {
         val hOffset = 10.0
-        initByCoords(
+        BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             10.0, 46.0, 20.0, 46.0, // crosses AHEAD of head - y = 46
             100.0, 46.0, 100.0, 100.0, 50.0, 100.0,
@@ -444,7 +399,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing coaxial segment within neck`() {
         val hOffset = 10.0
-        initByCoords(
+        BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             50.0, 54.0, 50.0, 56.0, // within neck
             100.0, 55.0, 50.0, 100.0, 50.0, 50.0 + hOffset
@@ -458,7 +413,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing coaxial segment overlaps neck`() {
         val hOffset = 10.0
-        initByCoords(
+        BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             50.0, 10.0, 50.0, 56.0, // starts outside neck, ends in neck
             100.0, 55.0, 50.0, 100.0, 50.0, 50.0 + hOffset
@@ -472,7 +427,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing coaxial segment ahead and outside neck`() {
         val hOffset = 10.0
-        initByCoords(
+        BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             50.0, 10.0, 50.0, 12.0, // starts outside neck, ends in neck
             100.0, 55.0, 50.0, 100.0, 50.0, 50.0 + hOffset
@@ -486,7 +441,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing coaxial segment behind and outside neck`() {
         val hOffset = 10.0
-        initByCoords(
+        BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             50.0, 200.0, 60.0, 100.0, 50.0, 110.0,
             50.0, 50.0 + hOffset
@@ -500,7 +455,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing coaxial neck within segment`() {
         val hOffset = 10.0
-        initByCoords(
+        BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             50.0, 20.0, 50.0, 100.0, // overlaps neck
             50.0, 50.0 + hOffset
@@ -516,7 +471,7 @@ class BodyModelCollisionTest {
         val hOffset = 10.0
 
         // here no collisiion - body crosses body, not head - no collision here
-        initByCoords(
+        BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             10.0, 62.0, 20.0, 62.0, // crosses BEHIND of face - y = 62
             100.0, 62.0, 100.0, 100.0, 50.0, 100.0,
@@ -535,7 +490,7 @@ class BodyModelCollisionTest {
         val hRadius = 3.0
         val radius = 1.0
 
-        initByCoords(
+        BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             70.0, 50.0,
             54.1, 50.0, // testcase: little right of neck (+0.1)
@@ -555,7 +510,7 @@ class BodyModelCollisionTest {
         val hRadius = 3.0
         val radius = 1.0
 
-        initByCoords(
+        BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             70.0, 50.0,
             53.9, 50.0, // testcase: little into neck (+0.1)

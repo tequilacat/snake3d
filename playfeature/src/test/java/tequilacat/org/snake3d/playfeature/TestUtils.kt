@@ -19,7 +19,7 @@ const val testDoubleTolerance = 0.000001
 fun floatArrayOfNumbers(vararg numbers: Number):FloatArray =
     numbers.map { it -> it.toFloat()}.toFloatArray()
 
-fun mockAndroidStatics() {
+fun mockAndroidStatics(doStdout: Boolean = false) {
     mockkStatic(SystemClock::class)
     mockkStatic(Matrix::class)
 
@@ -33,7 +33,13 @@ fun mockAndroidStatics() {
     }
 
     mockkStatic(Log::class)
-    every { Log.d(any(),any()) } returns 0
+    val slotMsg = slot<String>()
+    every { Log.d(any(), capture(slotMsg)) } answers {
+        if(doStdout) {
+            println(slotMsg.captured)
+        }
+        0
+    }
 }
 
 fun assertArraysEqual(v1: FloatArray, v2: FloatArray) {

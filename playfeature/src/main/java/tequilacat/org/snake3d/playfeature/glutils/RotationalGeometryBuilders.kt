@@ -6,16 +6,26 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
+
 interface IDirectedSection {
-    val centerX: Float
-    val centerY: Float
-    val centerZ: Float
+    val dCenterX: Double
+    val dCenterY: Double
+    val dCenterZ: Double
 
-    val radius: Float
+    val dRadius: Double
 
-    val prevLength: Float
+    val dPrevLength: Double
     // TODO get rid of alpha here
-    val alpha: Float
+    val dAlpha: Double
+
+
+    // float API
+    val centerX get() = dCenterX.toFloat()
+    val centerY get() = dCenterY.toFloat()
+    val centerZ get() = dCenterZ.toFloat()
+    val alpha get() = dAlpha.toFloat()
+    val radius get() = dRadius.toFloat()
+    val prevLength get() = dPrevLength.toFloat()
 }
 
 interface IRotationalGeometryBuilder {

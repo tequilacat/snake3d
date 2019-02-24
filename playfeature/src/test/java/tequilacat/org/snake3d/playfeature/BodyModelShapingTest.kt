@@ -1,6 +1,9 @@
 package tequilacat.org.snake3d.playfeature
 
+import io.mockk.unmockkAll
+import org.junit.After
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
 import kotlin.math.PI
 
@@ -12,7 +15,12 @@ class BodyModelShapingTest {
     private val tStartY = 2.0
     private val tStartZ = 1.0
     private val tStartAngle = PI /4
-//    private val tRadius = 1.0
+
+    @Before
+    fun beforeTests() = mockAndroidStatics(true)
+
+    @After
+    fun afterTests() = unmockkAll()
 
     /**
      * Test both
@@ -111,4 +119,22 @@ class BodyModelShapingTest {
             floatArrayOfNumbers(2, 0.25, 6, 1, 2, 0.5),
             lrPairs, testFloatTolerance )
     }
+
+    /**
+     * Tests error case with small difference in lengths that led to zero length/radius extra segment
+     */
+    @Test
+    fun `test against zero radius last segment`() {
+        val hOffset = 10.0
+        val sections = BodyModelTest.initByCoords(
+            1.0, hOffset, 2.0,
+            50.0, 10.0, 50.0, 56.0, 100.0, 55.0
+        ).bodySections.toList()
+
+        assertArrayEquals(
+            doubleArrayOf(0.0, 1.0, 1.0),
+            sections.map { s -> s.dRadius }.toDoubleArray(),
+            testDoubleTolerance)
+    }
+
 }

@@ -1,17 +1,58 @@
 package tequilacat.org.snake3d.playfeature
 
+import io.mockk.unmockkAll
+import org.junit.After
 import org.junit.Test
 
 import org.junit.Assert.*
+import org.junit.Before
 import tequilacat.org.snake3d.playfeature.glutils.IDirectedSection
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+import kotlin.math.*
 
 class BodyModelTest {
 
+    @Before
+    fun beforeTests() = mockAndroidStatics()
+
+    @After
+    fun afterTests() = unmockkAll()
+
     // for tests that must fail until they don't test for new segments anymore (to be replaced by NotSegmentedProportions)
 
+    companion object {
+        fun initByCoords(radius: Double, headOffset: Double, headRadius: Double, vararg coords: Double): BodyModel {
+            //val model = this
+            val floorZ = 0.0
+
+            var lastX = coords[0]
+            var lastY = coords[1]
+
+            val firstSegmentLen = hypot(coords[2]-coords[0], coords[3] - coords[1])
+            val model = BodyModel(TailLenBodyProportions(radius, firstSegmentLen, headOffset, headRadius))
+
+            for (i in 2 until coords.size step 2) {
+
+                val x = coords[i]
+                val y = coords[i+1]
+
+                val angle = atan2(y - lastY, x - lastX)
+                val length = hypot(y - lastY, x - lastX)
+
+                if(i == 2) {
+                    model.init(lastX, lastY, floorZ, angle, length)
+                    // never shrink
+                    model.feed(1000000.0)
+                } else {
+                    model.advance(length, angle - model.viewDirection)
+                }
+
+                lastX = x
+                lastY = y
+            }
+
+            return model
+        }
+    }
 
     private val TAILLEN_LARGE_100 = 100.0
     /** indicates that no shortening should take place */
@@ -51,14 +92,14 @@ class BodyModelTest {
                                          startX: Double = tStartX, startY: Double = tStartY) {
         val body = this
         val sections = body.bodySections.toList()
-        assertEquals(expectedLengths.size, sections.size - 1)
+        assertEquals("expected lengths differ", expectedLengths.size, sections.size - 1)
 
         var totalLen = 0.0
         val floorZ = sections[0].centerZ // always at floor
 
         // test starts exactly as specified
-        assertEquals(startX.toFloat(), sections[0].centerX, testFloatTolerance)
-        assertEquals(startY.toFloat(), sections[0].centerY, testFloatTolerance)
+        assertEquals("bad startX", startX.toFloat(), sections[0].centerX, testFloatTolerance)
+        assertEquals("bad startY", startY.toFloat(), sections[0].centerY, testFloatTolerance)
 
         for (i in 0 until expectedLengths.size) {
             val thisSegment = sections[i + 1]
@@ -115,6 +156,20 @@ class BodyModelTest {
         model.init(0.0,0.0, 0.0, 0.0, 0.1)
         assertEquals(2, model.bodySections.toList().size)
         assertEquals(0.1f, model.bodySections.toList()[1].prevLength, testFloatTolerance)
+    }
+
+    @Test
+    fun `init straight`() {
+        val sections = BodyModel(NotSegmentedProportions(tRadius, tHeadOffset, tHeadR))// NotImplProportions(2.0, tRadius, tHeadOffset, tHeadR))
+            .apply {
+                init(tStartX, tStartY, tStartZ, tStartAngle, 3.0)
+            }.bodySections.toList()
+
+        val lrPairs = sections.flatMap { s -> listOf(s.prevLength, s.radius) }.toFloatArray()
+        assertArrayEquals(
+            floatArrayOfNumbers(0, 0, 3, tRadius),
+            lrPairs, testFloatTolerance
+        )
     }
 
     @Test

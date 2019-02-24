@@ -1,21 +1,13 @@
 package tequilacat.org.snake3d.playfeature
 
+//import android.util.Log
 import tequilacat.org.snake3d.playfeature.glutils.IDirectedSection
-import java.util.*
 import kotlin.math.*
 
 /**
  * Logical representation of snake's body - segments and modification methods
  */
 class BodyModel(private val bodyProportions: IBodyProportions) {
-
-    /*
-     * @param headOffset is how far head is moved forward off the end
-     * @param headRadius collision radius of head, defaults to
-     */
-//    constructor(tailLength: Double, radius: Double,
-//                headOffset: Double, headRadius: Double)
-//            : this(TailLenBodyProportions(radius, tailLength, headOffset, headRadius))
 
     private var foodRunLength: Double = 0.0
 
@@ -31,7 +23,7 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
     // center of face (end of last segment)
     private var faceX: Double = 0.0
     private var faceY: Double = 0.0
-    private var faceZ: Double = 0.0
+    //private var faceZ: Double = 0.0
     private var faceR: Double = 0.0
 
     private var floorZ: Double = 0.0
@@ -44,23 +36,10 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
         private set
 
 
-    interface IDoubleDirectedSection {
-        val dCenterX: Double
-        val dCenterY: Double
-        val dCenterZ: Double
-
-        val dRadius: Double
-
-        val dPrevLength: Double
-        // TODO get rid of alpha here
-        val dAlpha: Double
-    }
-
-
-    private val tailSection = SingleSection()
+    // private val tailSection = SingleSection()
     private val headSection = SingleSection()
 
-    private class SingleSection : IDirectedSection, IDoubleDirectedSection {
+    private class SingleSection : IDirectedSection {
         override var dCenterX: Double = 0.0
         override var dCenterY: Double = 0.0
         override var dCenterZ: Double = 0.0
@@ -77,92 +56,117 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
             dRadius = r
             dPrevLength = length
         }
-
-        fun setFrom(tailSegment: BodySegmentModel) {
-            setValues(tailSegment.dStartX, tailSegment.dStartY, tailSegment.dStartZ, 0.0, tailSegment.dAlpha,
-                0.0)
-        }
-
-        override val alpha get() = dAlpha.toFloat()
-        override val centerX get() = dCenterX.toFloat()
-        override val centerY get() = dCenterY.toFloat()
-        override val centerZ get() = dCenterZ.toFloat()
-        override val radius get() = dRadius.toFloat()
-        override val prevLength get() = dPrevLength.toFloat()
     }
 
+    /**
+     * @param cPrevX x of previous point from which this segment is translated by dLength and dAngle
+     * @param cPrevY Y of previous point from which this segment is translated by dLength and dAngle
+     */
     private class BodySegmentModel(
-        var dStartX: Double, var dStartY: Double,
-        override val dAlpha: Double, var dLength: Double
-    ) : IDirectedSection, IDoubleDirectedSection {
+        cPrevX: Double, cPrevY: Double,
+        override val dAlpha: Double, aPrevLength: Double
+    ) : IDirectedSection {
 
-        var dEndX = 0.0
-        var dEndY = 0.0
-        var dEndZ = 0.0
-        var dStartZ = 0.0
+        override var dCenterX = 0.0
+        override var dCenterY = 0.0
+        override var dCenterZ = 0.0
+        override var dRadius = 0.0
+        override var dPrevLength: Double = aPrevLength
+            private set
 
-        //var dStartRadius = 0.0
-        var dEndRadius = 0.0
+        var prev: BodySegmentModel? = null
+        var next: BodySegmentModel? = null
+            private set
 
-        override val alpha: Float = dAlpha.toFloat()
+        private val alphaSinus = sin(dAlpha)
+        private val alphaCosinus = cos(dAlpha)
 
-        private val alphaSinus: Float = sin(alpha)
-        private val alphaCosinus: Float = cos(alpha)
+        constructor(prevSection: BodySegmentModel, horAngle: Double, length: Double)
+                : this( prevSection.dCenterX, prevSection.dCenterY, horAngle, length)
 
-        // IDirectedSection
-        override val centerX: Float get() = dEndX.toFloat()
-        override val centerY: Float get() = dEndY.toFloat()
-        override val centerZ: Float get() = dEndZ.toFloat()
-        override val radius: Float get() = dEndRadius.toFloat()
-        override val prevLength: Float get() = dLength.toFloat()
-
-        override val dCenterX get() = dEndX
-        override val dCenterY get() = dEndY
-        override val dCenterZ get() = dEndZ
-        override val dRadius get() = dEndRadius
-        override val dPrevLength get() = dLength
-
-
-        init {
-            computeEnd()
+        companion object {
+            fun createTail(cx: Double, cy: Double, angle: Double) = BodySegmentModel(cx, cy, angle, 0.0)
         }
 
-        private fun computeEnd() {
-            dEndX = dStartX + dLength * alphaCosinus
-            dEndY = dStartY + dLength * alphaSinus
+        init {
+            translateCenter(cPrevX, cPrevY, dPrevLength)
+        }
+
+        /**
+         * inserts this section between specified sections
+         * */
+        fun insert(prevSection: BodySegmentModel?, nextSection: BodySegmentModel?) {
+            prev = prevSection
+            next = nextSection
+            if(prev != null) {
+                prev!!.next = this
+            }
+            if(next != null) {
+                next!!.prev = this
+            }
+        }
+
+        /**
+         * translates new center to position from [fromX,fromY] by dAlpha and specified distance
+         */
+        private fun translateCenter(fromX: Double, fromY: Double, byDistance: Double) {
+            dCenterX = fromX + byDistance * alphaCosinus
+            dCenterY = fromY + byDistance * alphaSinus
         }
 
         fun extendBy(delta: Double) {
-            dLength += delta
-            computeEnd()
+            translateCenter(dCenterX, dCenterY, delta)
+            dPrevLength += delta
         }
 
-        /** shortens by specified amount or throws exception if length is >=*/
-        fun shortenBy(delta:Double) {
-            if (delta >= dLength) {
-                throw IllegalArgumentException("Cannot shorten segment having $dLength by $delta")
+
+        /**
+         * always appends FINAL section (its next is null) from current center
+         * */
+        fun appendSection(horzAngle: Double, segmentLength: Double) =
+            BodySegmentModel(this, horzAngle, segmentLength).also {
+                it.insert(this, null)
             }
-            dStartX += delta * alphaCosinus
-            dStartY += delta * alphaSinus
-            dLength -= delta
+
+        fun setRadiuses(newRadius: Double, floorZ: Double) {
+            dRadius = newRadius
+            dCenterZ = floorZ + dRadius
         }
 
-        fun setRadiuses(rStart: Double, rEnd: Double, floorZ: Double) {
-//            if(rStart == 0.0) {
-//                dStartZ = 0.0 // for zero radius we assume it's tail and it lays onn the floor
-//            }
-            dEndRadius = rEnd
-            dStartZ = floorZ + rStart
-            dEndZ = floorZ + dEndRadius
+        /** sets new length keeping same center point */
+        fun resizeFromTail(newLength: Double) {
+            dPrevLength = newLength
         }
+
+        /**
+         * creates a new tail and adds as prev segment of this one
+         */
+        fun makeTail() =
+            BodySegmentModel.createTail(
+                dCenterX - dPrevLength * alphaCosinus,
+                dCenterY - dPrevLength * alphaSinus, dAlpha).also {
+                it.insert(null, this)
+            }
+
     }
 
-    private val bodySegmentsImpl = LinkedList<BodySegmentModel>()
+    /**
+     * is created in init()
+     */
+    private lateinit var linkedListTailSection: BodySegmentModel
+
+    /**
+     *  is created in init()
+     */
+    private lateinit var linkedListHeadSection: BodySegmentModel
 
     val bodySections : Sequence<IDirectedSection> get() = sequence {
-        tailSection.setFrom(bodySegmentsImpl.first)
-        yield(tailSection as IDirectedSection)
-        yieldAll(bodySegmentsImpl)
+        var curSection:BodySegmentModel? = linkedListTailSection
+
+        while(curSection != null) {
+            yield(curSection as IDirectedSection)
+            curSection = curSection.next
+        }
     }
 
     // body sections with extra section for head
@@ -176,12 +180,13 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
 
     private fun updateHeadSection() {
         if (bodyProportions.headOffset > 0) {
-            val lastSegment = bodySegmentsImpl.last
+            val lastSegment = linkedListHeadSection as IDirectedSection
+            //val lastSegment = bodySegmentsImpl.last
             val lastR = bodyProportions.headRadius// lastSegment.dEndRadius * 1.5
             val headOffset = bodyProportions.headOffset
             headSection.setValues(
-                lastSegment.dEndX + cos(lastSegment.dAlpha) * headOffset,
-                lastSegment.dEndY + sin(lastSegment.dAlpha) * headOffset, floorZ + lastR,
+                lastSegment.dCenterX + cos(lastSegment.dAlpha) * headOffset,
+                lastSegment.dCenterY + sin(lastSegment.dAlpha) * headOffset, floorZ + lastR,
                 lastR, lastSegment.dAlpha, headOffset)
         }
     }
@@ -193,15 +198,16 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
              startHorzAngle: Double, totalLength: Double) {
         this@BodyModel.floorZ = floorZ
         foodRunLength = 0.0
-        bodySegmentsImpl.clear()
-        bodySegmentsImpl.addFirst(BodySegmentModel(startX, startY, startHorzAngle, totalLength))
+        linkedListTailSection = BodySegmentModel.createTail(startX, startY, startHorzAngle)
+        linkedListHeadSection = linkedListTailSection.appendSection(startHorzAngle, totalLength)
         processSegments()
     }
 
-    private fun computeTotalLength() = bodySegmentsImpl.sumByDouble { it.dPrevLength }
+    private fun computeTotalLength() = bodySections.sumByDouble { it.dPrevLength }
 
     // updates diameters, inserts if needed
     private fun processSegments() {
+        //Log.d("segments", "========= process segments")
         bodyProportions.resize(computeTotalLength())
 
         var index = 0
@@ -212,31 +218,61 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
         var shapeSegmentR0 = 0.0
         var shapeSegmentR1 = bodyProportions.segmentRadius(0)
 
-        val segIter = bodySegmentsImpl.iterator()
-        var segment = segIter.next() // on first time always assume hasNext = true
-        val newSegments = mutableListOf<BodySegmentModel>()
+        var segment = linkedListTailSection.next!!
+
+//        bodySections.forEach {
+//            Log.d("segments", "  R=${it.dRadius}, L=${it.dPrevLength}")
+//        }
+
+        // don't allow segments shorter than that
+        val minSegmentLength = 0.0001
 
         while(true) {
-            if(segment.dPrevLength <= remainingLength) {
-                adjustRadiuses(segment, curShapeSegmentStart, curShapeSegmentEnd, shapeSegmentR0, shapeSegmentR1, remainingLength)
-                newSegments.add(segment)
-                remainingLength -= segment.dPrevLength
-                if(!segIter.hasNext())
-                    break
-                segment = segIter.next()
+            //Log.d("segments", "Segment len: ${segment.dPrevLength} vs remLen = $remainingLength ")
 
-            } else { // segment length > remaining: split segment
-                val inserted = BodySegmentModel(segment.dStartX, segment.dStartY, segment.dAlpha, remainingLength)
+            // if segment is longer than remaining but by too short - consider it equal
+            val nearEqual = (segment.dPrevLength - remainingLength).absoluteValue < minSegmentLength
+
+            if(nearEqual || segment.dPrevLength < remainingLength) {
+                // segment is OK, switch
+                adjustRadiuses(segment, curShapeSegmentStart, curShapeSegmentEnd, shapeSegmentR0, shapeSegmentR1, remainingLength)
+
+                if(nearEqual) {
+                    remainingLength = 0.0
+                } else {
+                    remainingLength -= segment.dPrevLength
+                }
+
+                val next = segment.next
+                if (next != null) {
+                    segment = next
+//                    Log.d("segments", "  to next segment [remLength = $remainingLength]")
+                } else {
+                    linkedListHeadSection = segment
+//                    Log.d("segments", "  no more segments, break")
+                    break
+                }
+
+            } else {
+                // segment is (with tolerance) longer than remaining length and has to be split
+                // insert between prev and this one. prev is never null - we're starting with 2nd section
+//                val inserted = BodySegmentModel(segment.dStartX, segment.dStartY, segment.dAlpha, remainingLength)
+                val inserted = segment.prev!!.appendSection(segment.dAlpha, remainingLength)
+                inserted.insert(segment.prev, segment)
+                segment.resizeFromTail(segment.dPrevLength - remainingLength)
                 adjustRadiuses(inserted, curShapeSegmentStart, curShapeSegmentEnd, shapeSegmentR0, shapeSegmentR1, remainingLength)
-                newSegments.add(inserted) // TODO adjust radiuses
-                segment.shortenBy(remainingLength)
+//                Log.d("segments", "  insert R=${inserted.dRadius} L=${inserted.dPrevLength}, reiterate segment R=${segment.dRadius}")
                 remainingLength = 0.0
             }
 
-            if(remainingLength.absoluteValue < 0.001) { // tolerance - don't allow for extra short segments
+            if(remainingLength.absoluteValue < minSegmentLength) { // tolerance - don't allow for extra short segments
+//                Log.d("segments", "     - $remainingLength too small, on to next shapeSegm #${index+1} (count=$shapeSegmentCount}")
+
                 // switch to next
                 index++
                 if(index >= shapeSegmentCount) {
+                    linkedListHeadSection = segment // probably this should not happen but still update the head section
+//                    Log.d("segments", "    break after smallest section [r = ${linkedListHeadSection.dRadius}, l = ${linkedListHeadSection.dPrevLength}]")
                     break
                 }
 
@@ -249,22 +285,21 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
             }
         }
 
-        bodySegmentsImpl.clear()
-        bodySegmentsImpl.addAll(newSegments)
-
-        val last = bodySegmentsImpl.last()
+        // ensure tailpoint z/radius
+        linkedListTailSection.setRadiuses(0.0, floorZ)
+        val last = linkedListHeadSection
 
         // nose point
-        faceX = last.dEndX
-        faceY = last.dEndY
-        faceZ = last.dEndZ
-        faceR = last.dEndRadius
+        faceX = last.dCenterX
+        faceY = last.dCenterY
+        //faceZ = last.dCenterZ
+        faceR = last.dRadius
 
         headDirectionSinus = sin(last.dAlpha)
         headDirectionCosinus = cos(last.dAlpha)
 
-        dHeadX = last.dEndX + headDirectionCosinus * bodyProportions.headOffset
-        dHeadY = last.dEndY + headDirectionSinus * bodyProportions.headOffset
+        dHeadX = last.dCenterX + headDirectionCosinus * bodyProportions.headOffset
+        dHeadY = last.dCenterY + headDirectionSinus * bodyProportions.headOffset
 
         viewDirection = last.dAlpha.toFloat()
 
@@ -275,9 +310,9 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
         segment: BodySegmentModel, l0: Double, l1: Double, r0: Double, r1: Double, remainingLength: Double
     ) {
         val rPerL = (r1 - r0) / (l1 - l0)
-        val rStart = r0 + (l1 - l0 - remainingLength) * rPerL
+        //val rStart = r0 + (l1 - l0 - remainingLength) * rPerL
         val rEnd = r0 + (l1 - l0 - remainingLength + segment.dPrevLength) * rPerL
-        segment.setRadiuses(rStart, rEnd, floorZ)
+        segment.setRadiuses(rEnd, floorZ)
     }
 
     /**
@@ -285,13 +320,15 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
      *  */
     fun advance(distance: Double, angleDelta: Double) {
         // append new one or extend last if angle is 0
-        val last = bodySegmentsImpl.last()
+        //val last = bodySegmentsImpl.last()
 
         if(angleDelta == 0.0) {
-            last.extendBy(distance)
+            linkedListHeadSection.extendBy(distance)
         } else {
-            bodySegmentsImpl.addLast(BodySegmentModel(last.dEndX, last.dEndY,
-                last.dAlpha + angleDelta, distance))
+            linkedListHeadSection = linkedListHeadSection.appendSection(
+                linkedListHeadSection.dAlpha + angleDelta, distance)
+//                addLast(BodySegmentModel(last.dEndX, last.dEndY,
+//                last.dAlpha + angleDelta, distance))
         }
 
         var remainingShorten = when {
@@ -308,20 +345,23 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
             }
         }
 
-        while (remainingShorten > 0.0) {
-            val first = bodySegmentsImpl.first()
+        if(remainingShorten > 0.0) {
+            var curSeg = linkedListTailSection.next
 
-            if (first.dLength > remainingShorten) {
-                // shorten this one
-                first.shortenBy(remainingShorten)
-                break
+            while (curSeg != null && curSeg.dPrevLength <= remainingShorten) {
+                remainingShorten -= curSeg.dPrevLength
+                curSeg = curSeg.next
             }
-
-            bodySegmentsImpl.removeFirst()
-            remainingShorten -= first.dLength
+            // curSeg == null - subtracted too much, exception?
+            // otherwise curSeg.dPrevLength > remainingShorten - means we shorten it
+            if (curSeg != null) {
+                curSeg.resizeFromTail(curSeg.dPrevLength - remainingShorten)
+                linkedListTailSection = curSeg.makeTail()
+            }
         }
 
         processSegments()
+//        Log.d("segments", "advance($distance, $angleDelta): " + bodySections.map { it.dRadius }.joinToString(", "))
     }
 
     companion object {
@@ -444,10 +484,10 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
         }
 
         var remainingLenToFace = computeTotalLength()
-        var prevSection: IDoubleDirectedSection? = null
+        var prevSection: IDirectedSection? = null
 
-        for (floatSection in bodySections) {
-            val section = floatSection as IDoubleDirectedSection
+        for (section in bodySections) {
+            //val section = floatSection
             remainingLenToFace -= section.dPrevLength
             // if too close break it
             if(remainingLenToFace < faceR * 2) {
