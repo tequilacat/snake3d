@@ -19,6 +19,9 @@ const val testDoubleTolerance = 0.000001
 fun floatArrayOfNumbers(vararg numbers: Number):FloatArray =
     numbers.map { it -> it.toFloat()}.toFloatArray()
 
+fun doubleArrayOfNumbers(vararg numbers: Number):DoubleArray =
+    numbers.map { it -> it.toDouble()}.toDoubleArray()
+
 fun mockAndroidStatics(doStdout: Boolean = false) {
     mockkStatic(SystemClock::class)
     mockkStatic(Matrix::class)

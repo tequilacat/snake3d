@@ -337,12 +337,21 @@ class BodyModel(val bodyProportions: IBodyProportions) {
             }
         }
 
+        // notify digesting system that it may move food further
+        if (bodyProportions is IFeedableBodyProportions) {
+            bodyProportions.advance(distance)
+        }
+
         processSegments()
 //        Log.d("segments", "advance($distance, $angleDelta): " + bodySections.map { it.dRadius }.joinToString(", "))
     }
 
     /** how much length to keep while extending */
     fun feed(aFoodRunLength: Double) {
+        if (bodyProportions is IFeedableBodyProportions) {
+            // food is ready!
+            bodyProportions.feed()
+        }
         foodRunLength += aFoodRunLength
     }
 }
