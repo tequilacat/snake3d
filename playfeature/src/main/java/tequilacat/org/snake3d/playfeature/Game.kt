@@ -130,6 +130,8 @@ class Game(private val addObstacles: Boolean = true) {
         LEFT, RIGHT, NONE
     }
 
+    private val collisionDetector = CollisionDetector()
+
     fun tick(gameControlImpulse: GameControlImpulse): TickResult {
         val tickResult: TickResult
 
@@ -147,13 +149,13 @@ class Game(private val addObstacles: Boolean = true) {
 
         scene.bodyModel.advance(step, deltaAngle * step)
 
-        val collision = scene.bodyModel.checkCollisions(scene)
+        val collision = collisionDetector.check(scene.bodyModel, scene)
 
-        if (collision.type == BodyModel.CollisionType.WALL || collision.type == BodyModel.CollisionType.SELF) {
+        if (collision.type == CollisionDetector.CollisionType.WALL || collision.type == CollisionDetector.CollisionType.SELF) {
             firstLevel()
             tickResult = TickResult.INITGAME
 
-        } else if (collision.type == BodyModel.CollisionType.GAMEOBJECT) {
+        } else if (collision.type == CollisionDetector.CollisionType.GAMEOBJECT) {
             val collidingObj = collision.fieldObject
 
             when(collidingObj?.type) {

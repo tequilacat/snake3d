@@ -398,8 +398,8 @@ class BodyModelTest {
             init(startX, startY, 0.0, angle, bodyLength)
         }
 
-        assertEquals((startX + (bodyLength+ offset)*cos(angle)).toFloat(), body.headX, testFloatTolerance)
-        assertEquals((startY + (bodyLength+ offset)*sin(angle)).toFloat(), body.headY, testFloatTolerance)
+        assertEquals((startX + bodyLength * cos(angle)).toFloat(), body.headX, testFloatTolerance)
+        assertEquals((startY + bodyLength * sin(angle)).toFloat(), body.headY, testFloatTolerance)
         assertEquals(angle.toFloat(), body.viewDirection, testFloatTolerance)
     }
 

@@ -241,7 +241,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             val viewSin = sin(game.scene.bodyModel.viewDirection)
             val viewCos = cos(game.scene.bodyModel.viewDirection)
             val eyeH = Game.BODY_UNIT * 3
-            val cx: Float = game.scene.bodyModel.headX- viewCos * eyeRearDistance
+            val cx: Float = game.scene.bodyModel.headX - viewCos * eyeRearDistance
             val cy: Float = game.scene.bodyModel.headY - viewSin * eyeRearDistance
 
             Matrix.setLookAtM(
