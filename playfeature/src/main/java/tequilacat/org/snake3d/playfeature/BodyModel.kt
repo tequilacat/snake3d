@@ -7,7 +7,7 @@ import kotlin.math.*
 /**
  * Logical representation of snake's body - segments and modification methods
  */
-class BodyModel(val bodyProportions: IBodyProportions) {
+class BodyModel(private val bodyProportions: IBodyProportions) {
 
     private var foodRunLength: Double = 0.0
 
