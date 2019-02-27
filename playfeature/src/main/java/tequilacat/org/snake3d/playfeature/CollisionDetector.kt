@@ -3,6 +3,16 @@ package tequilacat.org.snake3d.playfeature
 import tequilacat.org.snake3d.playfeature.glutils.IDirectedSection
 import kotlin.math.*
 
+interface IBodyCollisionModel {
+    val faceSection: IDirectedSection
+
+    val headOffset: Double
+    val headRadius: Double
+    val lengthTailToFace: Double
+
+    val bodySections: Sequence<IDirectedSection>
+}
+
 class CollisionDetector {
 
     companion object {
@@ -19,7 +29,7 @@ class CollisionDetector {
         val isColliding = type != CollisionType.NONE
     }
 
-    private fun collidesHead(fieldObject: IFieldObject):Boolean {
+    private fun collidesHead(fieldObject: IFieldObject): Boolean {
         return collidesHead(
             fieldObject.centerX.toDouble(),
             fieldObject.centerY.toDouble(),
@@ -34,16 +44,17 @@ class CollisionDetector {
         // check how near to the face ring->head center line:
         // rotate obj center around last ring center, check distance to ring->head centers
         // translate to face CS
-        val offX = cx - faceX
-        val offY = cy - faceY
+        val face = collisionData.faceSection
+        val offX = cx - face.dCenterX
+        val offY = cy - face.dCenterY
 
         // rotate around face center
-        val rotX = offX * headDirectionCosinus - offY * (-headDirectionSinus)
-        val rotY = offX * (-headDirectionSinus) + offY * headDirectionCosinus
+        val rotX = offX * collisionData.headDirectionCosinus - offY * (-collisionData.headDirectionSinus)
+        val rotY = offX * (-collisionData.headDirectionSinus) + offY * collisionData.headDirectionCosinus
 
         // after rotation, behind face center or ahead of head sphere
-        val headOffset = headOffset
-        val headRadius = headRadius
+        val headOffset = collisionData.headOffset
+        val headRadius = collisionData.headRadius
 
         if(rotX < -objR || rotX >  headOffset + headRadius + objR)
             return false
@@ -51,13 +62,13 @@ class CollisionDetector {
         // Test if between face and head we're close to neck than radius
         // within neck (face-head segment): find radius at coords of tested obj
         // foolproof for head offset 0
-        val neckR = faceR + if (headOffset == 0.0) 0.0 else (headRadius - faceR) * rotX / headOffset
+        val neckR = face.dRadius + if (headOffset == 0.0) 0.0 else (headRadius - face.dRadius) * rotX / headOffset
         // only if center is within neck
         if (abs(rotY) - objR < neckR && rotX >= 0.0 && rotX < headOffset)
             return true
 
-        val dx=cx-dHeadX
-        val dy = cy - dHeadY
+        val dx=cx - collisionData.dHeadX
+        val dy = cy - collisionData.dHeadY
         val headAndObj = objR + headRadius
         // don't use square root, compare squares
         if (dx * dx + dy * dy < headAndObj * headAndObj) {
@@ -76,31 +87,30 @@ class CollisionDetector {
      *
      */
     private fun crossesHead(x0: Double, y0: Double, r0: Double, x1: Double, y1: Double, r1: Double): Boolean {
-        val offX0 = x0 - faceX
-        val offY0 = y0 - faceY
+        val face = collisionData.faceSection
+        val offX0 = x0 - face.dCenterX
+        val offY0 = y0 - face.dCenterY
 
         // rotate around face center
-        val rotX0 = offX0 * headDirectionCosinus -  offY0 * (-headDirectionSinus)
-        val rotY0 = offX0 * (-headDirectionSinus) + offY0 * headDirectionCosinus
+        val rotX0 = offX0 * collisionData.headDirectionCosinus -  offY0 * (-collisionData.headDirectionSinus)
+        val rotY0 = offX0 * (-collisionData.headDirectionSinus) + offY0 * collisionData.headDirectionCosinus
 
 
-        val offX1 = x1 - faceX
-        val offY1 = y1 - faceY
+        val offX1 = x1 - face.dCenterX
+        val offY1 = y1 - face.dCenterY
 
         // rotate around face center
-        val rotX1 = offX1 * headDirectionCosinus -  offY1 * (-headDirectionSinus)
-        val rotY1 = offX1 * (-headDirectionSinus) + offY1 * headDirectionCosinus
+        val rotX1 = offX1 * collisionData.headDirectionCosinus -  offY1 * (-collisionData.headDirectionSinus)
+        val rotY1 = offX1 * (-collisionData.headDirectionSinus) + offY1 * collisionData.headDirectionCosinus
 
         // if diff signs of Y they]re on different sides,
-        val headOffset = headOffset
-        val headRadius = headRadius
         val tolerance = 0.0001
 
         // when coaxial we test if both are within
         if(abs(rotY0) < tolerance && abs(rotY1) < tolerance) {
             val xMin = min(rotX0, rotX1)
             val xMax = max(rotX0, rotX1)
-            return (xMax >= 0.0 && xMin <= headOffset + headRadius)
+            return (xMax >= 0.0 && xMin <= collisionData.headOffset + collisionData.headRadius)
         }
 
         // on same side (the 0 is checked above
@@ -115,48 +125,43 @@ class CollisionDetector {
         val crossX = rotX0 + (rotX1 - rotX0) * factor
         val crossR = r0 + (r1 - r0) * factor
 
-        return crossX >= 0 && crossX - crossR < headOffset + headRadius
+        return crossX >= 0 && crossX - crossR < collisionData.headOffset + collisionData.headRadius
     }
 
+    private class CollisionBodyData {
+        var dHeadX: Double = 0.0
+        var dHeadY: Double = 0.0
+        var headDirectionSinus: Double = 0.0
+        var headDirectionCosinus: Double = 0.0
 
-    private var dHeadX = 0.0
-    private var dHeadY = 0.0
+        var headOffset: Double = 0.0
+        var headRadius: Double = 0.0
 
-    // center of face (end of last segment)
-    private var faceX: Double = 0.0
-    private var faceY: Double = 0.0
-    private var faceR: Double = 0.0
+        lateinit var faceSection: IDirectedSection
 
-    private var headDirectionSinus: Double = 0.0
-    private var headDirectionCosinus: Double = 0.0
+        fun init(collisionModel: IBodyCollisionModel) {
+            faceSection = collisionModel.faceSection
+            headOffset = collisionModel.headOffset
+            headRadius = collisionModel.headRadius
 
-    private var headOffset: Double = 0.0
-    private var headRadius: Double = 0.0
+            headDirectionSinus = sin(collisionModel.faceSection.dAlpha)
+            headDirectionCosinus = cos(collisionModel.faceSection.dAlpha)
 
-    fun check(body: BodyModel, gameScene: IGameScene) : Collision {
-        val last = body.neckSection
+            dHeadX = collisionModel.faceSection.dCenterX + headDirectionCosinus * collisionModel.headOffset
+            dHeadY = collisionModel.faceSection.dCenterY + headDirectionSinus * collisionModel.headOffset
+        }
+    }
 
-        headOffset = body.bodyProportions.headOffset
-        headRadius = body.bodyProportions.headRadius
+    private val collisionData = CollisionBodyData()
 
-        // nose point
-        faceX = last.dCenterX
-        faceY = last.dCenterY
-        //faceZ = last.dCenterZ
-        faceR = last.dRadius
+    fun check(collisionModel: IBodyCollisionModel, gameScene: IGameScene) : Collision {
+        collisionData.init(collisionModel)
 
-        headDirectionSinus = sin(last.dAlpha)
-        headDirectionCosinus = cos(last.dAlpha)
+        val face = collisionModel.faceSection
+        val headRadius = collisionModel.headRadius
 
-        dHeadX = last.dCenterX + headDirectionCosinus * body.bodyProportions.headOffset
-        dHeadY = last.dCenterY + headDirectionSinus * body.bodyProportions.headOffset
-
-
-
-        val headRadius = body.bodyProportions.headRadius
-
-        if (dHeadX + headRadius > gameScene.fieldWidth || dHeadX - headRadius < 0
-            || dHeadY + headRadius > gameScene.fieldHeight || dHeadY - headRadius < 0) {
+        if (collisionData.dHeadX + headRadius > gameScene.fieldWidth || collisionData.dHeadX - headRadius < 0
+            || collisionData.dHeadY + headRadius > gameScene.fieldHeight || collisionData.dHeadY - headRadius < 0) {
             return WALL_COLLISION
         }
 
@@ -166,14 +171,14 @@ class CollisionDetector {
             return Collision(CollisionType.GAMEOBJECT, obj)
         }
 
-        var remainingLenToFace = body.bodyLength
+        var remainingLenToFace = collisionModel.lengthTailToFace
         var prevSection: IDirectedSection? = null
 
-        for (section in body.bodySections) {
+        for (section in collisionModel.bodySections) {
             //val section = floatSection
             remainingLenToFace -= section.dPrevLength
             // if too close break it
-            if(remainingLenToFace < faceR * 2) {
+            if(remainingLenToFace < face.dRadius * 2) {
                 break
             }
 

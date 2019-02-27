@@ -218,7 +218,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
         if (debugScene != null) {
             // bodyShapeObject.update(debugScene.bodySegments)
         } else {
-            bodyShapeObject.update(game.scene.bodyModel.bodyAndHeadSections)
+            bodyShapeObject.update(game.bodyModel.bodyAndHeadSections)
         }
     }
 
@@ -238,11 +238,11 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
             )
         } else {
 
-            val viewSin = sin(game.scene.bodyModel.viewDirection)
-            val viewCos = cos(game.scene.bodyModel.viewDirection)
+            val viewSin = sin(game.bodyModel.viewDirection)
+            val viewCos = cos(game.bodyModel.viewDirection)
             val eyeH = Game.BODY_UNIT * 3
-            val cx: Float = game.scene.bodyModel.headX - viewCos * eyeRearDistance
-            val cy: Float = game.scene.bodyModel.headY - viewSin * eyeRearDistance
+            val cx: Float = game.bodyModel.headX - viewCos * eyeRearDistance
+            val cy: Float = game.bodyModel.headY - viewSin * eyeRearDistance
 
             Matrix.setLookAtM(
                 drawContext.viewMatrix, 0,
@@ -273,7 +273,7 @@ class GameRenderer(private val context: Context) : GLSurfaceView.Renderer  {
 
     private fun drawGameFrame() {
         val tickResult = if (debugScene == null) {
-            game.tick(inputController.computeImpulse(game.scene.bodyModel.viewDirection))
+            game.tick(inputController.computeImpulse(game.bodyModel.viewDirection))
         } else Game.TickResult.NONE
 
         when(tickResult) {

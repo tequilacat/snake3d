@@ -12,47 +12,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 class RotationalShapeBuilderTest {
-    private class TDS(
-        override val dCenterX: Double,
-        override val dCenterY: Double,
-        override val dCenterZ: Double,
-        override val dPrevLength: Double,
-        override val dRadius: Double,
-        var mutableAlpha: Float
-    ) : IDirectedSection {
-        override val dAlpha: Double get() = mutableAlpha.toDouble()
-    }
 
-    private class TB(private val startX: Number, private val startY: Number, private val floorZ: Number) {
-        //val segments = mutableListOf<IDirectedSection>()
-        private val segmentsList = mutableListOf<IDirectedSection>()
-        val segments get() = segmentsList.asSequence()
-
-        fun add(length: Number, radius: Number, deltaAngle: Number): TB {
-            val last: IDirectedSection
-            val newAngle: Double
-
-            if(segmentsList.isEmpty()) {
-                last = TDS(startX.toDouble(), startY.toDouble(), floorZ.toDouble(), 0.0,
-                    0.0, deltaAngle.toFloat())
-                segmentsList.add(last)
-                newAngle = deltaAngle.toDouble()
-            } else {
-                last = segmentsList.last()
-                newAngle = last.alpha + deltaAngle.toDouble()
-                (last as TDS).mutableAlpha = newAngle.toFloat()
-                // modify last alpha
-            }
-
-            segmentsList.add(TDS(
-                (last.centerX + length.toDouble() * cos(newAngle)),
-                (last.centerY + length.toDouble() * sin(newAngle)),
-                floorZ.toDouble() + radius.toDouble(),
-                length.toDouble(), radius.toDouble(), newAngle.toFloat()))
-
-            return this
-        }
-    }
 
     @Before
     fun beforeTests() = mockAndroidStatics()
@@ -60,65 +20,12 @@ class RotationalShapeBuilderTest {
     @After
     fun afterTests() = unmockkAll()
 
-    @Test
-    fun selftest() {
-
-        // test angles
-        val body2sections = TB(0.0, 0.0, 0.0)
-            .add(10, 1, 2).segments //
-
-        assertArrayEquals(floatArrayOf(2f,2f),
-            body2sections.toList().map { s -> s.alpha }.toFloatArray(), testFloatTolerance)
-
-        val body4sections = TB(0.0, 0.0, 0.0)
-            .add(1, 1, 1)
-            .add(1, 1, 1)
-            .add(1, 1, 1)
-            .segments
-        assertArrayEquals(floatArrayOf(1f, 2f, 3f, 3f),
-            body4sections.toList().map { s -> s.alpha }.toFloatArray(), testFloatTolerance)
-
-
-
-        // test coords
-        val body3sectionsCoords = TB(1,2,0)
-            .add(1, 2, PI/2)
-            .add(2, 1, PI/2)
-            .segments.toList()
-        assertEquals(3, body3sectionsCoords.size)
-        
-        val sec1 = body3sectionsCoords.first()
-        assertEquals(1f, sec1.centerX, testFloatTolerance)
-        assertEquals(2f, sec1.centerY, testFloatTolerance)
-        assertEquals(0f, sec1.centerZ, testFloatTolerance)
-        assertEquals(0f, sec1.radius, testFloatTolerance)
-        assertEquals(0f, sec1.prevLength, testFloatTolerance)
-        assertEquals(PI.toFloat() / 2, sec1.alpha, testFloatTolerance)
-
-        val sec2 = body3sectionsCoords[1]
-        assertEquals(1f, sec2.centerX, testFloatTolerance)
-        assertEquals(3f, sec2.centerY, testFloatTolerance)
-        assertEquals(2f, sec2.centerZ, testFloatTolerance)
-        assertEquals(2f, sec2.radius, testFloatTolerance)
-        assertEquals(1f, sec2.prevLength, testFloatTolerance)
-        // have rotated 2nd face
-        assertEquals(PI.toFloat(), sec2.alpha, testFloatTolerance)
-
-        val sec3 = body3sectionsCoords[2]
-        assertEquals(-1f, sec3.centerX, testFloatTolerance)
-        assertEquals(3f, sec3.centerY, testFloatTolerance)
-        assertEquals(1f, sec3.centerZ, testFloatTolerance)
-        assertEquals(1f, sec3.radius, testFloatTolerance)
-        assertEquals(2f, sec3.prevLength, testFloatTolerance)
-        // final face has same rotation
-        assertEquals(PI.toFloat(), sec3.alpha, testFloatTolerance)
-    }
 
     @Test
     fun `build basicfeatures`() {
         val geom = RotationalShapeBuilder(4, 0f, 1f, 0f)
             .run {
-                update(TB(0.0, 0.0, 0.0).add(1.0, 1.0, 0.0).segments)
+                update(TestSections(0.0, 0.0, 0.0).add(1.0, 1.0, 0.0).segments)
                 geometry
             }
 
@@ -132,7 +39,7 @@ class RotationalShapeBuilderTest {
         // BodyShape(4, testRadius,0f,1f, 0f)
         val geom = RotationalShapeBuilder(4, 0f, 1f, 0f)
             .run {
-                update(TB(0.0, 0.0, 0.0)
+                update(TestSections(0.0, 0.0, 0.0)
                     .add(1.0, 1.0, 0.0) // 4 segments to fit test data
                     .add(1.0, 1.0, 1.0)
                     .add(1.0, 1.0, 1.0)
@@ -161,7 +68,7 @@ class RotationalShapeBuilderTest {
      */
     @Test
     fun `counts and array reallocation`() {
-        val makeSegments = {i:Int -> TB(0.0, 0.0, 0.0).run {
+        val makeSegments = {i:Int -> TestSections(0.0, 0.0, 0.0).run {
             (1..i).forEach { _ -> add(1.0, 1.0, 0.0) }
             this
         }.segments}
@@ -213,7 +120,7 @@ class RotationalShapeBuilderTest {
     fun `vertex ring start`() {
         val nFaces = 5
         // floor -1, R 1 means all "ends" have Z=0
-        val segments = TB(0.0, 0.0, 0.0)
+        val segments = TestSections(0.0, 0.0, 0.0)
             .add(10.0, 1.0, 0.0)
             .add(10.0, 1.0, PI / 4)
             .add(10.0, 1.0, PI / 4).segments
@@ -262,7 +169,7 @@ class RotationalShapeBuilderTest {
         val r = 2.0f
         val builder = RotationalShapeBuilder(4, 0f, 1f, 0f)
         // 2 segments
-        builder.update(TB(0.0, 0.0, 0.0)
+        builder.update(TestSections(0.0, 0.0, 0.0)
             .add(len.toDouble(), r.toDouble(), 0.0).segments)
 
         // vertex count to be tested!
@@ -289,7 +196,7 @@ class RotationalShapeBuilderTest {
         val l1 = 10f
         val l2 = 5f
         val builder = RotationalShapeBuilder(4, 0f, 1f, 0f)
-        builder.update(TB(0.0, 0.0, 0.0)
+        builder.update(TestSections(0.0, 0.0, 0.0)
             .add(l1.toDouble(), r1.toDouble(), 0.0)
             .add(l2.toDouble(), r2.toDouble(), PI / 4).segments)
 
@@ -341,7 +248,7 @@ class RotationalShapeBuilderTest {
     @Test
     fun `vertex rotated coordinates for 3 segments`() {
         val builder = RotationalShapeBuilder(4, 0f, 1f, 0f)
-        builder.update(TB(0.0, 0.0, 0.0)
+        builder.update(TestSections(0.0, 0.0, 0.0)
             .add(10, 1, 0.0)
             .add(10, 1, PI/2)
             .add(10, 1, PI/2).segments)
@@ -394,7 +301,7 @@ class RotationalShapeBuilderTest {
 
         val builder= RotationalShapeBuilder(4, 0f, 1f, 0f)
         // make 3 segments to test ring#2 since testing normals of 1st ring connected to tail is too complex
-        builder.update(TB(0.0, 0.0, 0.0)
+        builder.update(TestSections(0.0, 0.0, 0.0)
             .add(l1.toDouble(), r1.toDouble(), 0.0)
             .add(l1.toDouble(), r1.toDouble(), 0.0)
             .add(l2.toDouble(), r1.toDouble(), PI / 4).segments)
@@ -440,7 +347,7 @@ class RotationalShapeBuilderTest {
         val nFaceSegments = 4
 
         val builder = RotationalShapeBuilder(nFaceSegments, 0f, uPer1Length, 0f)
-        builder.update(TB(0.0, 0.0, 0.0)
+        builder.update(TestSections(0.0, 0.0, 0.0)
             .add(length, 2.0, 0.0)
             .segments)
         val geometry = builder.geometry
@@ -468,7 +375,7 @@ class RotationalShapeBuilderTest {
         val r1 = 0.5f
 
         val builder = RotationalShapeBuilder(nFaceSegments, 0f, uPer1Length, 0f)
-        builder.update(TB(0.0, 0.0, 0.0)
+        builder.update(TestSections(0.0, 0.0, 0.0)
             .add(l1.toDouble(), r1.toDouble(), 0.0)
             .add(l2.toDouble(), r1.toDouble(), PI / 4)
             .add(l3.toDouble(), r1.toDouble(), -PI / 4).segments)
@@ -500,7 +407,7 @@ class RotationalShapeBuilderTest {
 
         // make 2 segments (2 rings to check)
         val geometry = RotationalShapeBuilder(nFaceSegments, startAngle, 1f, 0f).run {
-            update(TB(0.0, 0.0, 0.0)
+            update(TestSections(0.0, 0.0, 0.0)
                 .add(l1.toDouble(), r1.toDouble(), 1.0)
                 .add(l1.toDouble(), r1.toDouble(), 2.0).segments)
             geometry

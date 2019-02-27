@@ -42,6 +42,30 @@ class BodyModel(val bodyProportions: IBodyProportions) {
     }
 
     /**
+     * No neck collision model
+     */
+    private class MyCollisionModel : IBodyCollisionModel {
+
+        override var headOffset: Double = 0.0
+        override var headRadius: Double = 0.0
+        override var lengthTailToFace: Double = 0.0
+        override lateinit var faceSection: IDirectedSection
+        override lateinit var bodySections: Sequence<IDirectedSection>
+
+        fun init(body: BodyModel, faceSection: IDirectedSection) {
+            lengthTailToFace = body.bodyLength
+            headOffset = body.bodyProportions.headOffset
+            headRadius = body.bodyProportions.headRadius
+            bodySections = body.bodySections
+            this.faceSection = faceSection
+        }
+    }
+
+    private val collisionModelImpl = MyCollisionModel()
+
+    val collisionModel: IBodyCollisionModel = collisionModelImpl
+
+    /**
      * @param cPrevX x of previous point from which this segment is translated by dLength and dAngle
      * @param cPrevY Y of previous point from which this segment is translated by dLength and dAngle
      */
@@ -281,6 +305,7 @@ class BodyModel(val bodyProportions: IBodyProportions) {
         viewDirection = linkedListHeadSection.dAlpha.toFloat()
 
         updateHeadSection()
+        collisionModelImpl.init(this, linkedListHeadSection)
     }
 
     private fun adjustRadiuses(

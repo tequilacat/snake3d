@@ -16,6 +16,7 @@ class Game(private val addObstacles: Boolean = true) {
     private lateinit var sceneImpl: GameScene
 
     val scene: IGameScene get() { return sceneImpl }
+    val bodyModel get() = sceneImpl.bodyModel
 
     private var lastInteraction: Long = -1L
 
@@ -147,9 +148,9 @@ class Game(private val addObstacles: Boolean = true) {
         // check angle delta
         val deltaAngle = getEffectiveRotateAngle(gameControlImpulse)
 
-        scene.bodyModel.advance(step, deltaAngle * step)
+        sceneImpl.bodyModel.advance(step, deltaAngle * step)
 
-        val collision = collisionDetector.check(scene.bodyModel, scene)
+        val collision = collisionDetector.check(sceneImpl.bodyModel.collisionModel, scene)
 
         if (collision.type == CollisionDetector.CollisionType.WALL || collision.type == CollisionDetector.CollisionType.SELF) {
             firstLevel()
@@ -165,7 +166,7 @@ class Game(private val addObstacles: Boolean = true) {
                 }
                 IFieldObject.Type.PICKABLE -> {
                     scene.remove(collidingObj)
-                    scene.bodyModel.feed(FEED_SIZE)
+                    sceneImpl.bodyModel.feed(FEED_SIZE)
                     tickResult = TickResult.CONSUME
                 }
                 else -> tickResult = TickResult.MOVE
@@ -180,7 +181,7 @@ class Game(private val addObstacles: Boolean = true) {
 
     private class GameScene(private val level: Level) : IGameScene {
 
-        override val bodyModel = BodyModel(TailLenBodyProportions(R_HEAD, BODY_TAIL_LEN,
+        val bodyModel = BodyModel(TailLenBodyProportions(R_HEAD, BODY_TAIL_LEN,
             R_HEAD / 2, R_HEAD * 1.5))
 
         override val fieldWidth: Float = level.fieldWidth.toFloat()

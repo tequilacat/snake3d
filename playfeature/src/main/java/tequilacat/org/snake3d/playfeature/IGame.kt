@@ -18,6 +18,4 @@ interface IGameScene {
 
     val fieldObjects: Iterable<IFieldObject>
     fun remove(collidingObj: IFieldObject)
-
-    val bodyModel: BodyModel
 }

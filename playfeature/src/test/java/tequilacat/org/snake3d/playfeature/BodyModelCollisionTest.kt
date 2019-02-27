@@ -5,6 +5,7 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import tequilacat.org.snake3d.playfeature.glutils.IDirectedSection
 import kotlin.math.*
 
 class BodyModelCollisionTest {
@@ -20,14 +21,27 @@ class BodyModelCollisionTest {
         override val fieldObjects: Iterable<IFieldObject> = listOf()
     ) : IGameScene {
         override fun remove(collidingObj: IFieldObject) {}
-        // Placeholder
-        override val bodyModel = BodyModel(TailLenBodyProportions(1.0, 1.0, 0.0, 0.0))
     }
 
     private val headOffset = 0.5
     private val headR = 2.0
     private val headAngle = PI / 6
 
+
+    private class TestBCM(
+        override val faceSection: IDirectedSection,
+        override val headOffset: Double,
+        override val headRadius: Double,
+        override val lengthTailToFace: Double,
+        override val bodySections: Sequence<IDirectedSection>
+    ) : IBodyCollisionModel {
+
+    }
+
+//    private fun bcm(headCenterX: Double, headCenterY: Double): IBodyCollisionModel {
+//        // create 2 segment
+//        return TestBCM()
+//    }
 
     private fun body(headCenterX: Double, headCenterY: Double): BodyModel {
         val bodyLen = 10.0
@@ -50,24 +64,27 @@ class BodyModelCollisionTest {
         assertEquals((5 - sin(headAngle) * headOffset).toFloat(), body.bodySections.last().centerY, testFloatTolerance)
     }
 
-    private fun cd() = CollisionDetector()
+    //private fun cd() = CollisionDetector()
+
+    private fun check(bodyModel: BodyModel, scene: IGameScene) =
+        CollisionDetector().check(bodyModel.collisionModel, scene)
 
     // active zone is head
     @Test
     fun `collision to field margins`() {
         val scene = TestScene(10f, 10f)
         // R = 2
-        assertEquals(CollisionDetector.CollisionType.NONE, cd().check(body(5.0,5.0), scene).type)
+        assertEquals(CollisionDetector.CollisionType.NONE, check(body(5.0,5.0), scene).type)
 
-        assertEquals(CollisionDetector.CollisionType.WALL, cd().check(body(9.0,5.0), scene).type)
-        assertEquals(CollisionDetector.CollisionType.WALL, cd().check(body(11.0,5.0), scene).type)
-        assertEquals(CollisionDetector.CollisionType.WALL, cd().check(body(1.0,5.0), scene).type)
-        assertEquals(CollisionDetector.CollisionType.WALL, cd().check(body(-1.0,5.0), scene).type)
+        assertEquals(CollisionDetector.CollisionType.WALL, check(body(9.0,5.0), scene).type)
+        assertEquals(CollisionDetector.CollisionType.WALL, check(body(11.0,5.0), scene).type)
+        assertEquals(CollisionDetector.CollisionType.WALL, check(body(1.0,5.0), scene).type)
+        assertEquals(CollisionDetector.CollisionType.WALL, check(body(-1.0,5.0), scene).type)
 
-        assertEquals(CollisionDetector.CollisionType.WALL, cd().check(body(5.0,9.0), scene).type)
-        assertEquals(CollisionDetector.CollisionType.WALL, cd().check(body(5.0,11.0), scene).type)
-        assertEquals(CollisionDetector.CollisionType.WALL, cd().check(body(5.0,1.0), scene).type)
-        assertEquals(CollisionDetector.CollisionType.WALL, cd().check(body(5.0,-1.0), scene).type)
+        assertEquals(CollisionDetector.CollisionType.WALL, check(body(5.0,9.0), scene).type)
+        assertEquals(CollisionDetector.CollisionType.WALL, check(body(5.0,11.0), scene).type)
+        assertEquals(CollisionDetector.CollisionType.WALL, check(body(5.0,1.0), scene).type)
+        assertEquals(CollisionDetector.CollisionType.WALL, check(body(5.0,-1.0), scene).type)
     }
 
     private data class FO( override val centerX: Float, override val centerY: Float, override val radius: Float) : IFieldObject {
@@ -105,7 +122,7 @@ class BodyModelCollisionTest {
 
         assertEquals(
             CollisionDetector.CollisionType.NONE,
-            cd().check(body, TestScene(10f, 10f, listOf(FO(0.0, 0.0, FO.R)))).type)
+            check(body, TestScene(10f, 10f, listOf(FO(0.0, 0.0, FO.R)))).type)
 
         val foFar = FO(
             headX + (headR + FO.R) * 1.1 * cos(headAngle),
@@ -113,13 +130,13 @@ class BodyModelCollisionTest {
         // close but too far by exact distance:
         assertEquals(
             CollisionDetector.CollisionType.NONE,
-            cd().check(body, TestScene(10f, 10f, listOf(foFar))).type)
+            check(body, TestScene(10f, 10f, listOf(foFar))).type)
 
         val foNear = FO(
             headX + (headR + FO.R) * 0.9 * cos(headAngle),
             headY + (headR + FO.R) * 0.9 * sin(headAngle), FO.R)
 
-        cd().check(body, TestScene(10f, 10f, listOf(foNear))).apply {
+        check(body, TestScene(10f, 10f, listOf(foNear))).apply {
             assertTrue(this.isColliding)
             assertEquals(CollisionDetector.CollisionType.GAMEOBJECT, this.type)
             assertEquals(foNear, this.fieldObject)
@@ -151,52 +168,52 @@ class BodyModelCollisionTest {
         // behind sphere AND body center
 
         // ahead head center and a bit outside radius
-        cd().check(body, TestScene(w, h, listOf(FO(5.0, 16.0 + objR*2, objR))))
+        check(body, TestScene(w, h, listOf(FO(5.0, 16.0 + objR*2, objR))))
             .assertIs(CollisionDetector.CollisionType.NONE)
 
         // little behind face center, inside body - this check must fail, really checked elsewhere
-        cd().check(body, TestScene(w, h, listOf(FO(5.0, 10.0 - 0.2, 0.1))))
+        check(body, TestScene(w, h, listOf(FO(5.0, 10.0 - 0.2, 0.1))))
             .assertIs(CollisionDetector.CollisionType.NONE)
 
         // ahead head center but within radius
-        cd().check(body, TestScene(w, h, listOf(FO(5.0, 15.0, objR))))
+        check(body, TestScene(w, h, listOf(FO(5.0, 15.0, objR))))
             .assertCollidesObject()
 
 
 
         // between head center and face ring center - AND does not touch head sphere
-        cd().check(body, TestScene(w, h, listOf(FO(5.0, 14.0 - headRadius - objR * 2, objR))))
+        check(body, TestScene(w, h, listOf(FO(5.0, 14.0 - headRadius - objR * 2, objR))))
             .assertCollidesObject()
 
         // exactly at head ring center
-        cd().check(body, TestScene(w, h, listOf(FO(5.0, 10.0, objR))))
+        check(body, TestScene(w, h, listOf(FO(5.0, 10.0, objR))))
             .assertCollidesObject()
 
         // Test touch neck:
         // Offset from neck: [6.25, 11] is on neck line
 
         // between head/ring centers and within the head cone - COLLIDES
-        cd().check(body, TestScene(w, h, listOf(FO(6.25 - 2 * objR, 11.0, objR))))
+        check(body, TestScene(w, h, listOf(FO(6.25 - 2 * objR, 11.0, objR))))
             .assertCollidesObject()
 
         // between head/ring centers and out of the head cone - NO collision
-        cd().check(body, TestScene(w, h, listOf(FO(6.25 + 2 * objR, 11.0, objR))))
+        check(body, TestScene(w, h, listOf(FO(6.25 + 2 * objR, 11.0, objR))))
             .assertIs(CollisionDetector.CollisionType.NONE)
 
         // also tricky - further ahead but within cone (out of head sphere)
-        cd().check(body, TestScene(w, h, listOf(FO(7.0, 15.0, objR))))
+        check(body, TestScene(w, h, listOf(FO(7.0, 15.0, objR))))
             .assertIs(CollisionDetector.CollisionType.NONE)
     }
 
     @Test
     fun `self no curves no collisions`() {
         // trivial
-        cd().check(body(5.0, 5.0), TestScene(100f,100f))
+        check(body(5.0, 5.0), TestScene(100f,100f))
             .assertIs(CollisionDetector.CollisionType.NONE)
 
         // test that closest and smallest segments do not trigger collision
         // 11 segments by 0.2r
-        cd().check(
+        check(
             BodyModel(TailLenBodyProportions(1.0, 1000.0, 1.0, 1.0)).apply {
             init(10.0, 10.0, 10.0, 0.0, 0.2)
             advance(0.2, 0.01)
@@ -222,7 +239,7 @@ class BodyModelCollisionTest {
         val totalLen = 9.0
         val headR = 10.0 // HUGE head
 
-        cd().check(BodyModel(TailLenBodyProportions(1.0, 1000.0, 0.0, headR)).apply {
+        check(BodyModel(TailLenBodyProportions(1.0, 1000.0, 0.0, headR)).apply {
             init(100.0, 100.0, 10.0, 0.0, totalLen)
         }, TestScene(1000f, 1000f))
             .assertNone()
@@ -238,7 +255,7 @@ class BodyModelCollisionTest {
         val hRadius = 2.0
         val radius = 1.0
 
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             52.0, 52.0, // out of cone clearly: no collision
             100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
@@ -257,7 +274,7 @@ class BodyModelCollisionTest {
         val radius = 1.0
         val margin = 0.01
 
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             50.0, 48.0 - margin, // ahead of head
             100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
@@ -276,7 +293,7 @@ class BodyModelCollisionTest {
         val radius = 1.0
         val margin = 0.01
 
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             52 + margin, 55.0, // almost touching cone but little outside
             100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
@@ -295,7 +312,7 @@ class BodyModelCollisionTest {
         val radius = 1.0
         val margin = 0.01
 
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             52 - margin, 53.0, // exactly touching cone and little inside
             100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
@@ -313,7 +330,7 @@ class BodyModelCollisionTest {
         val hRadius = 2.0
         val radius = 1.0
 
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             50.0, 49.0, // within head
             100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
@@ -330,7 +347,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing neck not touching head`() {
         val hOffset = 10.0
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             10.0, 55.0, 20.0, 55.0, // crosses neck without touching head - @y=55
             100.0, 55.0, 100.0, 100.0, 50.0, 100.0,
@@ -345,7 +362,7 @@ class BodyModelCollisionTest {
     fun `self crossing neck diagonal`() {
         val hOffset = 10.0
         // crosses neck without touching head - @y=55
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             10.0, 55.0, 45.0, 55.0, 55.0, 50.0,
             100.0, 50.0, 100.0, 100.0, 50.0, 100.0,
@@ -360,7 +377,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing head`() {
         val hOffset = 10.0
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             10.0, 47.5, 20.0, 47.5, // crosses head - y = 47.5
             100.0, 47.5, 100.0, 100.0, 50.0, 100.0,
@@ -375,7 +392,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing ahead of head`() {
         val hOffset = 10.0
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             10.0, 46.0, 20.0, 46.0, // crosses AHEAD of head - y = 46
             100.0, 46.0, 100.0, 100.0, 50.0, 100.0,
@@ -391,7 +408,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing coaxial segment within neck`() {
         val hOffset = 10.0
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             50.0, 54.0, 50.0, 56.0, // within neck
             100.0, 55.0, 50.0, 100.0, 50.0, 50.0 + hOffset
@@ -404,7 +421,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing coaxial segment overlaps neck`() {
         val hOffset = 10.0
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             50.0, 10.0, 50.0, 56.0, // starts outside neck, ends in neck
             100.0, 55.0, 50.0, 100.0, 50.0, 50.0 + hOffset
@@ -418,7 +435,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing coaxial segment ahead and outside neck`() {
         val hOffset = 10.0
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             50.0, 10.0, 50.0, 12.0, // starts outside neck, ends in neck
             100.0, 55.0, 50.0, 100.0, 50.0, 50.0 + hOffset
@@ -432,7 +449,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing coaxial segment behind and outside neck`() {
         val hOffset = 10.0
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             50.0, 200.0, 60.0, 100.0, 50.0, 110.0,
             50.0, 50.0 + hOffset
@@ -446,7 +463,7 @@ class BodyModelCollisionTest {
     @Test
     fun `self crossing coaxial neck within segment`() {
         val hOffset = 10.0
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             50.0, 20.0, 50.0, 100.0, // overlaps neck
             50.0, 50.0 + hOffset
@@ -462,7 +479,7 @@ class BodyModelCollisionTest {
         val hOffset = 10.0
 
         // here no collisiion - body crosses body, not head - no collision here
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             1.0, hOffset, 2.0,
             10.0, 62.0, 20.0, 62.0, // crosses BEHIND of face - y = 62
             100.0, 62.0, 100.0, 100.0, 50.0, 100.0,
@@ -481,7 +498,7 @@ class BodyModelCollisionTest {
         val hRadius = 3.0
         val radius = 1.0
 
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             70.0, 50.0,
             54.1, 50.0, // testcase: little right of neck (+0.1)
@@ -501,7 +518,7 @@ class BodyModelCollisionTest {
         val hRadius = 3.0
         val radius = 1.0
 
-        cd().check(BodyModelTest.initByCoords(
+        check(BodyModelTest.initByCoords(
             radius, hOffset, hRadius,
             70.0, 50.0,
             53.9, 50.0, // testcase: little into neck (+0.1)
