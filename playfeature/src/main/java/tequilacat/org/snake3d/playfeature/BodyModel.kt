@@ -7,20 +7,18 @@ import kotlin.math.*
 /**
  * Logical representation of snake's body - segments and modification methods
  */
-class BodyModel(private val bodyProportions: IBodyProportions) {
+class BodyModel(private val bodyProportions: IFeedableBodyProportions) {
 
+    // TODO move into body proportions
     private var foodRunLength: Double = 0.0
 
     private var floorZ: Double = 0.0
 
     /** direction of view and further direct movements */
-    var viewDirection: Float = 0f
-        private set
+    val viewDirection: Float get() = linkedListNeckSection.alpha
 
-    val headX: Float get() = linkedListHeadSection.centerX
-    val headY: Float get() = linkedListHeadSection.centerY
-
-    private val headSection = SingleSection()
+    val headX: Float get() = linkedListNeckSection.centerX
+    val headY: Float get() = linkedListNeckSection.centerY
 
     private class SingleSection : IDirectedSection {
         override var dCenterX: Double = 0.0
@@ -31,11 +29,11 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
         override var dRadius: Double = 0.0
         override var dPrevLength: Double = 0.0
 
-        fun setValues(x: Double, y: Double, z: Double, r: Double, alpha: Double, length: Double) {
-            dCenterX = x
-            dCenterY = y
-            dCenterZ = z
-            dAlpha = alpha
+        fun setValues(prevSection: IDirectedSection, r: Double, length: Double) {
+            dCenterX = prevSection.dCenterX + length * cos(prevSection.dAlpha)
+            dCenterY = prevSection.dCenterY + length * sin(prevSection.dAlpha)
+            dCenterZ = prevSection.dCenterZ - prevSection.dRadius + r
+            dAlpha = prevSection.dAlpha
             dRadius = r
             dPrevLength = length
         }
@@ -52,12 +50,14 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
         override lateinit var faceSection: IDirectedSection
         override lateinit var bodySections: Sequence<IDirectedSection>
 
-        fun init(body: BodyModel, faceSection: IDirectedSection) {
-            lengthTailToFace = body.bodyLength
-            headOffset = body.bodyProportions.headOffset
-            headRadius = body.bodyProportions.headRadius
+        fun init(body: BodyModel, neckSection: IDirectedSection) {
             bodySections = body.bodySections
-            this.faceSection = faceSection
+            this.faceSection = neckSection
+            val propos = body.bodyProportions
+            lengthTailToFace = propos.lengthToNeck
+            // always consider head ring is next to Neck
+            headRadius = propos.segmentRadius(propos.neckIndex + 1)
+            headOffset = propos.segmentEndFromTail(propos.neckIndex + 1) - lengthTailToFace
         }
     }
 
@@ -157,6 +157,9 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
 
     }
 
+    private val headSectionsList =
+        (bodyProportions.neckIndex + 1 until bodyProportions.segmentCount).map { SingleSection() }.toList()
+
     /**
      * is created in init()
      */
@@ -165,10 +168,9 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
     /**
      *  is created in init()
      */
-    private lateinit var linkedListHeadSection: BodySegmentModel
+    private lateinit var linkedListNeckSection: BodySegmentModel
 
-    val neckSection get() = linkedListHeadSection as IDirectedSection
-
+    // all segments up to bodyProportions.neckIndex
     val bodySections : Sequence<IDirectedSection> get() = sequence {
         var curSection:BodySegmentModel? = linkedListTailSection
 
@@ -178,27 +180,28 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
         }
     }
 
-    // body sections with extra section for head
+    // all segments
     val bodyAndHeadSections : Sequence<IDirectedSection> get() = sequence {
         yieldAll(bodySections)
-        // add section of head R ahead
-        if (bodyProportions.headOffset > 0) {
-            yield(headSection)
+        yieldAll(headSectionsList)
+    }
+    // body sections with extra section for head
+
+
+    private fun updateHeadSection() {
+        var prev = linkedListNeckSection as IDirectedSection
+        var nSeg = bodyProportions.neckIndex + 1
+        var lastLenFromTail = bodyProportions.segmentEndFromTail(bodyProportions.neckIndex)
+
+        for (headSection in headSectionsList) {
+            val curLenFromTail = bodyProportions.segmentEndFromTail(nSeg)
+            headSection.setValues(prev, bodyProportions.segmentRadius(nSeg), curLenFromTail - lastLenFromTail)
+            prev = headSection
+            nSeg++
+            lastLenFromTail = curLenFromTail
         }
     }
 
-    private fun updateHeadSection() {
-        if (bodyProportions.headOffset > 0) {
-            val lastSegment = linkedListHeadSection as IDirectedSection
-            //val lastSegment = bodySegmentsImpl.last
-            val lastR = bodyProportions.headRadius// lastSegment.dEndRadius * 1.5
-            val headOffset = bodyProportions.headOffset
-            headSection.setValues(
-                lastSegment.dCenterX + cos(lastSegment.dAlpha) * headOffset,
-                lastSegment.dCenterY + sin(lastSegment.dAlpha) * headOffset, floorZ + lastR,
-                lastR, lastSegment.dAlpha, headOffset)
-        }
-    }
 
     /**
      * Z is floor level
@@ -207,24 +210,21 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
              startHorzAngle: Double, totalLength: Double) {
         this@BodyModel.floorZ = floorZ
         foodRunLength = 0.0
+        bodyProportions.resize(totalLength)
+        // find out initial straight section length
+        val tailToNeck = bodyProportions.segmentEndFromTail(bodyProportions.neckIndex)
         linkedListTailSection = BodySegmentModel.createTail(startX, startY, startHorzAngle)
-        linkedListHeadSection = linkedListTailSection.appendSection(startHorzAngle, totalLength)
+        linkedListNeckSection = linkedListTailSection.appendSection(startHorzAngle, tailToNeck)
         processSegments()
     }
 
-    private fun computeTotalLength() = bodySections.sumByDouble { it.dPrevLength }
-
-    var bodyLength: Double = 0.0
-        private set
+    private fun Sequence<IDirectedSection>.printable() =
+        this.map { s-> "[${s.dPrevLength}, ${s.dRadius}]" }.joinToString(", ")
 
     // updates diameters, inserts if needed, computes length - and does not change it
     private fun processSegments() {
-        //Log.d("segments", "========= process segments")
-        bodyLength = computeTotalLength()
-        bodyProportions.resize(bodyLength)
-
         var index = 0
-        val shapeSegmentCount = bodyProportions.segmentCount
+        val neckIndex = bodyProportions.neckIndex
         var curShapeSegmentStart = 0.0
         var curShapeSegmentEnd = bodyProportions.segmentEndFromTail(0)
         var remainingLength = curShapeSegmentEnd
@@ -232,10 +232,6 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
         var shapeSegmentR1 = bodyProportions.segmentRadius(0)
 
         var segment = linkedListTailSection.next!!
-
-//        bodySections.forEach {
-//            Log.d("segments", "  R=${it.dRadius}, L=${it.dPrevLength}")
-//        }
 
         // don't allow segments shorter than that
         val minSegmentLength = 0.0001
@@ -261,7 +257,7 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
                     segment = next
 //                    Log.d("segments", "  to next segment [remLength = $remainingLength]")
                 } else {
-                    linkedListHeadSection = segment
+                    linkedListNeckSection = segment
 //                    Log.d("segments", "  no more segments, break")
                     break
                 }
@@ -283,9 +279,9 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
 
                 // switch to next
                 index++
-                if(index >= shapeSegmentCount) {
-                    linkedListHeadSection = segment // probably this should not happen but still update the head section
-//                    Log.d("segments", "    break after smallest section [r = ${linkedListHeadSection.dRadius}, l = ${linkedListHeadSection.dPrevLength}]")
+                if(index > neckIndex) {
+                    linkedListNeckSection = segment // probably this should not happen but still update the head section
+//                    Log.d("segments", "    break after smallest section [r = ${linkedListNeckSection.dRadius}, l = ${linkedListNeckSection.dPrevLength}]")
                     break
                 }
 
@@ -301,11 +297,8 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
         // ensure tailpoint z/radius
         linkedListTailSection.setRadiuses(0.0, floorZ)
 
-
-        viewDirection = linkedListHeadSection.dAlpha.toFloat()
-
         updateHeadSection()
-        collisionModelImpl.init(this, linkedListHeadSection)
+        collisionModelImpl.init(this, linkedListNeckSection)
     }
 
     private fun adjustRadiuses(
@@ -321,31 +314,23 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
      *  moves body forward, shortening tail if shortenBy is > 0
      *  */
     fun advance(distance: Double, angleDelta: Double) {
-        // append new one or extend last if angle is 0
-        //val last = bodySegmentsImpl.last()
+        //println("=========== begin advance: body is ${bodyAndHeadSections.printable()}")
+
+        //println("bef. bodyProportions.advance($distance): ${bodyProportions.lengthToNeck}; ${bodyProportions.fullLength}")
+        bodyProportions.advance(distance)
+        //println("aft. bodyProportions.advance($distance): ${bodyProportions.lengthToNeck}; ${bodyProportions.fullLength}")
+
+        val neckExtension: Double = distance
+        // equalize BODY segments length with proportions size  by extending neck and cutting tail if needed
 
         if(angleDelta == 0.0) {
-            linkedListHeadSection.extendBy(distance)
+            linkedListNeckSection.extendBy(neckExtension)
         } else {
-            linkedListHeadSection = linkedListHeadSection.appendSection(
-                linkedListHeadSection.dAlpha + angleDelta, distance)
-//                addLast(BodySegmentModel(last.dEndX, last.dEndY,
-//                last.dAlpha + angleDelta, distance))
+            linkedListNeckSection = linkedListNeckSection.appendSection(
+                linkedListNeckSection.dAlpha + angleDelta, neckExtension)
         }
 
-        var remainingShorten = when {
-            foodRunLength == 0.0 -> distance
-            foodRunLength >= distance -> {
-                foodRunLength -= distance
-                0.0
-            }
-            else -> {
-                // FRL < distance - drag something
-                val res = distance - foodRunLength
-                foodRunLength = 0.0
-                res
-            }
-        }
+        var remainingShorten = bodySections.sumByDouble { s -> s.dPrevLength } - bodyProportions.lengthToNeck
 
         if(remainingShorten > 0.0) {
             var curSeg = linkedListTailSection.next
@@ -363,20 +348,14 @@ class BodyModel(private val bodyProportions: IBodyProportions) {
         }
 
         // notify digesting system that it may move food further
-        if (bodyProportions is IFeedableBodyProportions) {
-            bodyProportions.advance(distance)
-        }
 
         processSegments()
 //        Log.d("segments", "advance($distance, $angleDelta): " + bodySections.map { it.dRadius }.joinToString(", "))
     }
 
     /** how much length to keep while extending */
-    fun feed(aFoodRunLength: Double) {
-        if (bodyProportions is IFeedableBodyProportions) {
-            // food is ready!
-            bodyProportions.feed()
-        }
-        foodRunLength += aFoodRunLength
+    fun feed() {
+        bodyProportions.feed()
+        // foodRunLength += aFoodRunLength
     }
 }

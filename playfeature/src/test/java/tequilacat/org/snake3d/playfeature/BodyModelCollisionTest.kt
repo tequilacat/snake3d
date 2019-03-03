@@ -211,7 +211,8 @@ class BodyModelCollisionTest {
 
     @Test
     fun `self no curves no collisions`() {
-        // trivial
+        TODO("replace test with simpler conditions - that short multisegmented body does not trigger self")
+        /*
         check(straightAtCenter(5.0, 5.0), TestScene(100f,100f))
             .assertIs(CollisionDetector.CollisionType.NONE)
 
@@ -232,6 +233,7 @@ class BodyModelCollisionTest {
             advance(0.2, -0.01)
         }.collisionModel, TestScene(1000f,1000f))
             .assertNone()
+            */
     }
 
 

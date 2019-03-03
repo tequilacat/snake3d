@@ -1,21 +1,12 @@
 package tequilacat.org.snake3d.playfeature
 
-/**
- * defines "breaks" in linear advance of radius on imaginary straight body. */
-interface IBodyProportions {
-    val segmentCount: Int
-
-    val headOffset: Double
-    val headRadius: Double
-
-    fun resize(bodyLength: Double)
-    fun segmentEndFromTail(index: Int): Double
-    fun segmentRadius(index: Int): Double
-}
+import kotlin.math.min
 
 interface IFeedableBodyProportions {
     val segmentCount: Int
     val neckIndex: Int
+    val fullLength: Double
+    val lengthToNeck get() = segmentEndFromTail(neckIndex)
 
     fun resize(bodyLength: Double)
     fun segmentEndFromTail(index: Int): Double
@@ -29,63 +20,27 @@ interface IFeedableBodyProportions {
 
     /** feeds a unit of food to the snake so it starts digesting it */
     fun feed()
-}
 
-// TODO move TailLenBodyProportions to test utils after body shaping is truly dynamic
-/**
- * previously hardcoded behaviour when theres tail length expanding to maxRadius,
- * and same radius is kept to the nose point
- * */
-class TailLenBodyProportions(
-    private val maxRadius: Double, private val tailLength: Double,
-    override val headOffset: Double, private val headRadiusToNeckRatio: Double) : IBodyProportions {
-
-    override var headRadius: Double = 0.0
-
-    private var curLength: Double = 0.0
-
-    override fun resize(bodyLength: Double) {
-        if(curLength < 0)
-            throw IllegalArgumentException("Distance to tail $curLength is negative")
-        curLength = bodyLength
-
-        val lastR = if (curLength >= tailLength) maxRadius else maxRadius * curLength / tailLength
-        headRadius = if (headOffset == 0.0) lastR else lastR * headRadiusToNeckRatio
-    }
-
-    override val segmentCount get() = if(curLength > tailLength) 2 else 1
-
-    override fun segmentEndFromTail(index: Int): Double {
-        val maxSegments = segmentCount
-        if (index < 0 || index >= maxSegments)
-            throw IllegalArgumentException("Bad segment index $index of allowed $maxSegments")
-
-        return if(maxSegments == 1 || index == 1) {
-            curLength
-        } else {
-            tailLength
-        }
-    }
-
-    override fun segmentRadius(index: Int): Double {
-        val maxSegments = segmentCount
-        if (index < 0 || index >= maxSegments)
-            throw IllegalArgumentException("Bad segment index $index of allowed $maxSegments")
-
-        return if(curLength >= tailLength) maxRadius
-        else maxRadius * curLength / tailLength
+    fun printable(): String  {
+        val posAndR = (0 until segmentCount)
+            .map { i-> "[${segmentEndFromTail(i)}, ${segmentRadius(i)}]" }
+            .joinToString(", ")
+        return "l = $fullLength all: $segmentCount neck @$neckIndex, lr = $posAndR"
     }
 }
 
 class FeedableProportions(
     private val lenRadiusPairs: DoubleArray,
     private val maxRadius: Double,
-    private val fullRadiusFirstIndex: Int
+    private val fullRadiusFirstIndex: Int,
+    private val feedByFullRadiusRatio: Double // TODO remove default
 ) : IFeedableBodyProportions {
 
-    private var bodyLength: Double = -1.0
     private var ratio: Double = 0.0
+    private var foodToConsume: Double = 0.0
 
+    override var fullLength = 0.0
+//    override val fullLength get() = segmentEndFromTail(segmentCount - 1)
     override val segmentCount = lenRadiusPairs.size / 2
     override val neckIndex = segmentCount - 3
 
@@ -96,7 +51,40 @@ class FeedableProportions(
     }
 
     override fun resize(bodyLength: Double) {
-        this.bodyLength = bodyLength
+        adjustSize(bodyLength)
+        foodToConsume = 0.0
+    }
+
+    override fun segmentEndFromTail(index: Int): Double {
+        val segDistance: Double
+        val fromTail = lenRadiusPairs[index * 2]
+
+        //
+        if(index <= fullRadiusFirstIndex || ratio == fullLength) {
+            segDistance = fromTail * ratio
+        } else {
+            segDistance = fullLength - (1 - fromTail) * ratio
+        }
+
+        return segDistance
+    }
+
+    override fun segmentRadius(index: Int) = lenRadiusPairs[index * 2 + 1] * ratio
+
+    override fun advance(distance: Double) {
+        if(foodToConsume > 0) {
+            val deltaLength = min(distance, foodToConsume)
+            foodToConsume -= deltaLength
+            adjustSize(fullLength + deltaLength)
+        }
+    }
+
+    override fun feed() {
+        foodToConsume += feedByFullRadiusRatio * segmentRadius(fullRadiusFirstIndex)
+    }
+
+    private fun adjustSize(bodyLength: Double) {
+        fullLength = bodyLength
         val refR = lenRadiusPairs[fullRadiusFirstIndex * 2 + 1]
 
         if (refR * bodyLength <= maxRadius) {
@@ -104,40 +92,5 @@ class FeedableProportions(
         } else {
             ratio = maxRadius / refR
         }
-    }
-
-    override fun segmentEndFromTail(index: Int): Double {
-        if(bodyLength < 0) {
-            throw IllegalStateException("bodyLength not assigned")
-        }
-
-        val segDistance: Double
-        val fromTail = lenRadiusPairs[index * 2]
-
-        if(index <= fullRadiusFirstIndex || ratio == bodyLength) {
-            segDistance = fromTail * ratio
-        } else {
-            segDistance = bodyLength - (1 - fromTail) * ratio
-        }
-
-        return segDistance
-    }
-
-    override fun segmentRadius(index: Int): Double {
-        if(bodyLength < 0) {
-            throw IllegalStateException("bodyLength not assigned")
-        }
-
-        val relR = lenRadiusPairs[index * 2 + 1]
-
-        return relR * ratio
-    }
-
-    override fun advance(distance: Double) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
-    override fun feed() {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 }

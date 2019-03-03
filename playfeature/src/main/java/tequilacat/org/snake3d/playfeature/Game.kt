@@ -166,7 +166,7 @@ class Game(private val addObstacles: Boolean = true) {
                 }
                 IFieldObject.Type.PICKABLE -> {
                     scene.remove(collidingObj)
-                    sceneImpl.bodyModel.feed(FEED_SIZE)
+                    sceneImpl.bodyModel.feed()
                     tickResult = TickResult.CONSUME
                 }
                 else -> tickResult = TickResult.MOVE
@@ -180,9 +180,9 @@ class Game(private val addObstacles: Boolean = true) {
     }
 
     private class GameScene(private val level: Level) : IGameScene {
-
-        val bodyModel = BodyModel(TailLenBodyProportions(R_HEAD, BODY_TAIL_LEN,
-            R_HEAD / 2, R_HEAD * 1.5))
+        val bodyModel = BodyModel(FeedableProportions(
+            doubleArrayOf(0.3, 0.1, 0.65, 0.1, 0.8, 0.07, 0.9, 0.1, 1.0, 0.07),
+            R_HEAD,0, 2.0))
 
         override val fieldWidth: Float = level.fieldWidth.toFloat()
         override val fieldHeight: Float = level.fieldHeight.toFloat()
